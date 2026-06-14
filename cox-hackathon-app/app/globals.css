@@ -1,26 +1,150 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:is(.dark *));
+
+/* ───────────────────────────────────────────────
+   Canopy palette — generates bg-canopy-*, text-canopy-*, border-canopy-*
+   ─────────────────────────────────────────────── */
+@theme {
+  --color-canopy-bg:        #0a1a0f;
+  --color-canopy-surface:   #111f14;
+  --color-canopy-border:    #1e3a22;
+  --color-canopy-green:     #22c55e;
+  --color-canopy-green-dim: #16a34a;
+  --color-canopy-amber:     #f59e0b;
+  --color-canopy-red:       #ef4444;
+  --color-canopy-text:      #f0fdf4;
+  --color-canopy-muted:     #93a99b;
 }
 
+/* shadcn semantic tokens → mapped to runtime CSS vars below */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Canopy is dark by default — semantic tokens use the Canopy palette */
+:root {
+  --background: #0a1a0f;
+  --foreground: #f0fdf4;
+  --card: #111f14;
+  --card-foreground: #f0fdf4;
+  --popover: #111f14;
+  --popover-foreground: #f0fdf4;
+  --primary: #22c55e;
+  --primary-foreground: #06140b;
+  --secondary: #1e3a22;
+  --secondary-foreground: #f0fdf4;
+  --muted: #16271b;
+  --muted-foreground: #93a99b;
+  --accent: #16a34a;
+  --accent-foreground: #f0fdf4;
+  --destructive: #ef4444;
+  --border: #1e3a22;
+  --input: #1e3a22;
+  --ring: #22c55e;
+  --chart-1: #22c55e;
+  --chart-2: #16a34a;
+  --chart-3: #f59e0b;
+  --chart-4: #4ade80;
+  --chart-5: #86efac;
+  --radius: 0.625rem;
+  --sidebar: #111f14;
+  --sidebar-foreground: #f0fdf4;
+  --sidebar-primary: #22c55e;
+  --sidebar-primary-foreground: #06140b;
+  --sidebar-accent: #1e3a22;
+  --sidebar-accent-foreground: #f0fdf4;
+  --sidebar-border: #1e3a22;
+  --sidebar-ring: #22c55e;
+}
+
+/* keep .dark identical so the `dark:` variant never inverts the theme */
+.dark {
+  --background: #0a1a0f;
+  --foreground: #f0fdf4;
+  --card: #111f14;
+  --card-foreground: #f0fdf4;
+  --popover: #111f14;
+  --popover-foreground: #f0fdf4;
+  --primary: #22c55e;
+  --primary-foreground: #06140b;
+  --secondary: #1e3a22;
+  --secondary-foreground: #f0fdf4;
+  --muted: #16271b;
+  --muted-foreground: #93a99b;
+  --accent: #16a34a;
+  --accent-foreground: #f0fdf4;
+  --destructive: #ef4444;
+  --border: #1e3a22;
+  --input: #1e3a22;
+  --ring: #22c55e;
+  --chart-1: #22c55e;
+  --chart-2: #16a34a;
+  --chart-3: #f59e0b;
+  --chart-4: #4ade80;
+  --chart-5: #86efac;
+  --sidebar: #111f14;
+  --sidebar-foreground: #f0fdf4;
+  --sidebar-primary: #22c55e;
+  --sidebar-primary-foreground: #06140b;
+  --sidebar-accent: #1e3a22;
+  --sidebar-accent-foreground: #f0fdf4;
+  --sidebar-border: #1e3a22;
+  --sidebar-ring: #22c55e;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html,
+  body {
+    background-color: var(--color-canopy-bg);
+    color: var(--color-canopy-text);
+  }
+  html {
+    @apply font-sans;
+  }
 }
