@@ -78,6 +78,7 @@ export default function MapContainer() {
         longitude: MAP_DEFAULTS.lng,
         zoom: MAP_DEFAULTS.zoom,
       }}
+      maxZoom={18}
       style={{ width: '100%', height: '100%' }}
     >
       <NavigationControl position="top-left" />

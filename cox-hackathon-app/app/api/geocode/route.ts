@@ -16,6 +16,10 @@ export interface GeocodeResult {
   address: string
   lat: number
   lng: number
+  /** Nominatim OSM category, e.g. "building", "amenity", "leisure" */
+  category: string
+  /** Nominatim OSM type, e.g. "yes", "restaurant", "park" */
+  osmType: string
 }
 
 function inAtlanta(lat: number, lng: number): boolean {
@@ -66,6 +70,8 @@ export async function GET(request: Request) {
       name?: string
       lat: string
       lon: string
+      category?: string
+      type?: string
       address?: Record<string, string>
     }
 
@@ -87,6 +93,8 @@ export async function GET(request: Request) {
           address: item.display_name,
           lat,
           lng,
+          category: item.category ?? '',
+          osmType: item.type ?? '',
         }
       })
       // Enforce Atlanta-only even if the geocoder strays past the box.

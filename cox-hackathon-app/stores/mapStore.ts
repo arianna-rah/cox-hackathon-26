@@ -6,6 +6,8 @@ export interface SearchPlace {
   address: string
   lat: number
   lng: number
+  category: string
+  osmType: string
 }
 
 interface MapState {
