@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
-import Map, { NavigationControl, useMap } from 'react-map-gl/maplibre'
+import { useEffect, useRef } from 'react'
+import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/maplibre'
+import { MapPin } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { MAP_DEFAULTS, ESRI_SATELLITE_TILES } from '@/lib/constants'
 import { useMapStore } from '@/stores/mapStore'
@@ -27,27 +28,49 @@ const MAP_STYLE = {
   ],
 }
 
-/** Flies the camera to the selected building whenever it changes. */
-function FlyToSelected() {
-  const { 'main-map': map } = useMap()
-  const selected = useMapStore((s) => s.selectedBuilding)
+/** Drops a pin on the searched place. */
+function SearchMarker() {
+  const place = useMapStore((s) => s.searchPlace)
 
+  if (!place) return null
+
+  return (
+    <Marker longitude={place.lng} latitude={place.lat} anchor="bottom">
+      <MapPin className="h-8 w-8 fill-canopy-green text-canopy-bg drop-shadow-lg" />
+    </Marker>
+  )
+}
+
+export default function MapContainer() {
+  const mapRef = useRef<MapRef | null>(null)
+  const selectedBuilding = useMapStore((s) => s.selectedBuilding)
+  const searchPlace = useMapStore((s) => s.searchPlace)
+
+  // Fly to the selected building whenever it changes.
   useEffect(() => {
-    if (selected && map) {
-      map.flyTo({
-        center: [selected.lng, selected.lat],
+    if (selectedBuilding) {
+      mapRef.current?.flyTo({
+        center: [selectedBuilding.lng, selectedBuilding.lat],
         zoom: 17,
         duration: 1200,
       })
     }
-  }, [selected, map])
+  }, [selectedBuilding])
 
-  return null
-}
+  // Fly to a searched place whenever it changes.
+  useEffect(() => {
+    if (searchPlace) {
+      mapRef.current?.flyTo({
+        center: [searchPlace.lng, searchPlace.lat],
+        zoom: 17,
+        duration: 1200,
+      })
+    }
+  }, [searchPlace])
 
-export default function MapContainer() {
   return (
     <Map
+      ref={mapRef}
       id="main-map"
       mapStyle={MAP_STYLE}
       initialViewState={{
@@ -58,7 +81,7 @@ export default function MapContainer() {
       style={{ width: '100%', height: '100%' }}
     >
       <NavigationControl position="top-left" />
-      <FlyToSelected />
+      <SearchMarker />
       <BuildingLayer />
       <CommunityLayer />
     </Map>
