@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "cox-hackathon-app", "run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "canopy-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "cox-hackathon-app", "run", "start"],
+      "port": 3000
     }
   ]
 }
