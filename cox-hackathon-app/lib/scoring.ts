@@ -2,14 +2,50 @@ import type { Building, UserPreferences, ScoredOption, CommunityBonus } from '@/
 import { ROOF_OPTIONS } from './options'
 import { ATLANTA } from './constants'
 import { NEIGHBOR_BUILDINGS } from './buildings'
+import type { SolarData } from './solar'
 
-export function scoreAndRankOptions(b: Building, p: UserPreferences): ScoredOption[] {
+/**
+ * Real solar economics from measured Google Solar data + real Atlanta rates.
+ *   cost    = installed $/watt × measured capacity, minus the 30% federal ITC
+ *   savings = measured kWh/yr × real electricity rate
+ *   co2     = measured kWh/yr × this grid's carbon intensity
+ * No $/sq ft guesses — everything scales off measured production.
+ */
+export function realSolarEconomics(solar: SolarData) {
+  const grossCost = solar.totalCapacityWatts * ATLANTA.solarInstalledCostPerWatt
+  const upfrontCost = Math.round(grossCost * (1 - ATLANTA.federalITC))
+  const annualSavings = Math.round(solar.annualKwh * ATLANTA.electricityRateDollarsPerKwh)
+  const co2Tons = (solar.annualKwh * solar.carbonOffsetFactorKgPerMwh) / 1_000_000
+  const roiMonths = annualSavings > 0 ? Math.round((upfrontCost / annualSavings) * 12) : 999
+  return { upfrontCost, annualSavings, co2Tons, roiMonths, annualKwh: solar.annualKwh }
+}
+
+export function scoreAndRankOptions(
+  b: Building,
+  p: UserPreferences,
+  solar?: SolarData | null,
+): ScoredOption[] {
+  // Prefer the Google-measured roof area when available.
+  const roofArea = solar?.roofAreaSqFt ?? b.roofAreaSqFt
   return ROOF_OPTIONS.map((o) => {
     const feasible = o.structuralLoadPSF <= b.maxLoadPSF
-    const cost = o.costFixed ?? (o.costPerSqFt ?? 0) * b.roofAreaSqFt
-    const net = (o.annualSavingsFixed ?? (o.annualSavingsPerSqFt ?? 0) * b.roofAreaSqFt) + (o.annualRevenueFixed ?? 0)
+    let cost = o.costFixed ?? (o.costPerSqFt ?? 0) * roofArea
+    let net = (o.annualSavingsFixed ?? (o.annualSavingsPerSqFt ?? 0) * roofArea) + (o.annualRevenueFixed ?? 0)
+    let co2 = o.co2TonsPerYear ?? (o.co2TonsPerSqFtPerYear ?? 0) * roofArea
+    let annualKwh: number | undefined
+    let isReal = false
+
+    // The solar option uses real measured data when we have it.
+    if (o.id === 'solar' && solar) {
+      const e = realSolarEconomics(solar)
+      cost = e.upfrontCost
+      net = e.annualSavings
+      co2 = e.co2Tons
+      annualKwh = e.annualKwh
+      isReal = true
+    }
+
     const roi = net <= 0 ? 999 : Math.round((cost / net) * 12)
-    const co2 = o.co2TonsPerYear ?? (o.co2TonsPerSqFtPerYear ?? 0) * b.roofAreaSqFt
     const score =
       Math.max(0, 100 - (roi / 48) * 100)      * (p.costSensitivity * 0.35) +
       Math.min(100, co2 * 4)                    * ((1 - p.costSensitivity) * 0.30) +
@@ -19,7 +55,7 @@ export function scoreAndRankOptions(b: Building, p: UserPreferences): ScoredOpti
     if (!feasible) warningsForBuilding.unshift(
       `⚠ Building max load (${b.maxLoadPSF} lbs/sq ft) is below requirement (${o.structuralLoadPSF} lbs/sq ft)`
     )
-    return { ...o, score, feasible, uptrontCost: cost, annualNetDollars: net, roiMonths: roi, warningsForBuilding }
+    return { ...o, score, feasible, uptrontCost: cost, annualNetDollars: net, roiMonths: roi, co2TonsPerYear: co2, annualKwh, isReal, warningsForBuilding }
   }).sort((a, z) => z.score - a.score)
 }
 

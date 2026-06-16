@@ -9,16 +9,19 @@ import {
   Droplets,
   ArrowRight,
   TriangleAlert,
+  Satellite,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useMapStore } from '@/stores/mapStore'
+import { useAnalysisStore } from '@/stores/analysisStore'
 import type { Building } from '@/types'
 
-/** Rough annual "hidden cost" of leaving the roof as-is. */
-function hiddenCosts(b: Building) {
-  const cooling = Math.round(b.heatIslandIntensityF * b.roofAreaSqFt * 0.04)
-  const maintenance = Math.round(b.roofAreaSqFt * 0.11)
+/** Rough annual "hidden cost" of leaving the roof as-is (modelled estimate). */
+function hiddenCosts(b: Building, roofAreaSqFt: number) {
+  const cooling = Math.round(b.heatIslandIntensityF * roofAreaSqFt * 0.04)
+  const maintenance = Math.round(roofAreaSqFt * 0.11)
   const stormwater = Math.round(b.annualStormwaterCreditDollars)
   return { cooling, maintenance, stormwater, total: cooling + maintenance + stormwater }
 }
@@ -46,10 +49,16 @@ function Stat({
 export function BuildingInfo() {
   const b = useMapStore((s) => s.selectedBuilding)
   const advanceTo = useMapStore((s) => s.advanceTo)
+  const solar = useAnalysisStore((s) => s.solar)
+  const solarLoading = useAnalysisStore((s) => s.solarLoading)
   if (!b) return null
 
-  const costs = hiddenCosts(b)
   const prewar = b.yearBuilt < 1980
+
+  // Prefer Google-measured values when the Solar API returned data.
+  const roofAreaSqFt = solar?.roofAreaSqFt ?? b.roofAreaSqFt
+  const sunHrs = solar?.sunExposureHrsPerDay ?? b.sunExposureHrsPerDay
+  const costs = hiddenCosts(b, roofAreaSqFt)
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -71,11 +80,24 @@ export function BuildingInfo() {
         <p className="text-sm text-canopy-muted">{b.address}</p>
       </div>
 
+      {/* Live data status */}
+      {solarLoading ? (
+        <div className="flex items-center gap-2 text-xs text-canopy-muted">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Fetching live roof data from Google Solar…
+        </div>
+      ) : solar ? (
+        <div className="flex items-center gap-2 text-xs text-canopy-green">
+          <Satellite className="h-3.5 w-3.5" />
+          Live satellite roof data · Google Solar API
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-2.5">
-        <Stat icon={Ruler} label="Roof Area" value={`${b.roofAreaSqFt.toLocaleString()} ft²`} />
+        <Stat icon={Ruler} label="Roof Area" value={`${roofAreaSqFt.toLocaleString()} ft²`} />
         <Stat icon={Layers} label="Roof" value={`${b.roofType} · ${b.roofMaterial}`} />
         <Stat icon={Weight} label="Max Load" value={`${b.maxLoadPSF} lbs/ft²`} />
-        <Stat icon={Sun} label="Sun Exposure" value={`${b.sunExposureHrsPerDay} hrs/day`} />
+        <Stat icon={Sun} label="Sun Exposure" value={`${sunHrs} hrs/day`} />
         <Stat icon={Thermometer} label="Heat Island" value={`+${b.heatIslandIntensityF}°F`} />
         <Stat icon={Droplets} label="Stormwater" value={`$${b.annualStormwaterCreditDollars.toLocaleString()}/yr`} />
       </div>

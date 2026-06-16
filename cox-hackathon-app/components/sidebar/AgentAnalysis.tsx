@@ -4,8 +4,9 @@ import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
-import { scoreAndRankOptions, calculateCommunityBonus } from '@/lib/scoring'
+import { scoreAndRankOptions, calculateCommunityBonus, realSolarEconomics } from '@/lib/scoring'
 import type { Building } from '@/types'
+import type { SolarData } from '@/lib/solar'
 
 const PHASES = [
   'Roof Assessment',
@@ -14,21 +15,33 @@ const PHASES = [
   'Community Score',
 ]
 
-const FALLBACK_MESSAGES = (b: Building) => [
-  `Roof: ${b.roofAreaSqFt.toLocaleString()} sq ft flat surface · ${b.roofMaterial}`,
-  `${b.yearBuilt < 1980 ? '⚠ Pre-1980 — structural load caution flagged' : 'Post-1980 — standard load capacity'}`,
-  `Solar irradiance: 5.1 kWh/m²/day · Heat island: ${b.heatIslandIntensityF}°F above baseline`,
-  `Wind: 9 mph avg — turbines not recommended · Rainfall: 50.2 in/yr — rainwater viable`,
-  `Running ${b.roofAreaSqFt > 15000 ? '1,247' : '891'} configuration scenarios...`,
-  `Cool roof: $${(1.5 * b.roofAreaSqFt).toLocaleString()} · ROI ~14 months`,
-  b.maxLoadPSF >= 4
-    ? `Solar: feasible — est. $${Math.round(b.precomputedSolarKwhPerYear * 0.12).toLocaleString()}/yr savings`
-    : 'Solar: ⚠ structural advisory for this building',
-  `${b.neighborIds.length} neighboring buildings identified · Block discount: 12%`,
-  `Pooled stormwater credit: $${Math.round(b.annualStormwaterCreditDollars * 2.8).toLocaleString()}/yr · City grant: $25,000 eligible`,
-  '─────────────────────────────────',
-  '✓ Analysis complete.',
-]
+const FALLBACK_MESSAGES = (b: Building, solar: SolarData | null) => {
+  // When real Google Solar data is present, narrate the measured facts; the
+  // solar line then reports the genuine production + savings, not a guess.
+  const roofArea = solar?.roofAreaSqFt ?? b.roofAreaSqFt
+  const solarLine = solar
+    ? `✓ Google Solar API: ${solar.annualKwh.toLocaleString()} kWh/yr measured — est. $${realSolarEconomics(solar).annualSavings.toLocaleString()}/yr savings`
+    : b.maxLoadPSF >= 4
+      ? `Solar: feasible — est. $${Math.round(b.precomputedSolarKwhPerYear * 0.12).toLocaleString()}/yr savings`
+      : 'Solar: ⚠ structural advisory for this building'
+  return [
+    solar
+      ? `Google Solar: ${roofArea.toLocaleString()} sq ft usable roof · ${solar.maxPanels} panels max`
+      : `Roof: ${roofArea.toLocaleString()} sq ft flat surface · ${b.roofMaterial}`,
+    `${b.yearBuilt < 1980 ? '⚠ Pre-1980 — structural load caution flagged' : 'Post-1980 — standard load capacity'}`,
+    solar
+      ? `Sunshine: ${solar.maxSunshineHoursPerYear.toLocaleString()} hrs/yr measured · Grid carbon: ${Math.round(solar.carbonOffsetFactorKgPerMwh)} kg/MWh`
+      : `Solar irradiance: 5.1 kWh/m²/day · Heat island: ${b.heatIslandIntensityF}°F above baseline`,
+    `Wind: 9 mph avg — turbines not recommended · Rainfall: 50.2 in/yr — rainwater viable`,
+    `Running ${roofArea > 15000 ? '1,247' : '891'} configuration scenarios...`,
+    `Cool roof: $${Math.round(1.5 * roofArea).toLocaleString()} · ROI ~14 months`,
+    solarLine,
+    `${b.neighborIds.length} neighboring buildings identified · Block discount: 12%`,
+    `Pooled stormwater credit: $${Math.round(b.annualStormwaterCreditDollars * 2.8).toLocaleString()}/yr · City grant: $25,000 eligible`,
+    '─────────────────────────────────',
+    '✓ Analysis complete.',
+  ]
+}
 
 /** Segmented progress bar in the mono aesthetic. */
 function PhaseBar({ filled }: { filled: number }) {
@@ -81,7 +94,10 @@ export function AgentAnalysis() {
       es?.close()
       clearInterval(ticker)
       clearTimeout(watchdog)
-      const ranked = scoreAndRankOptions(b, p)
+      // Use whatever real Google Solar data has loaded by now (fetched when the
+      // building was selected); null falls back to modelled estimates.
+      const solar = useAnalysisStore.getState().solar
+      const ranked = scoreAndRankOptions(b, p, solar)
       const community = calculateCommunityBonus(b)
       setResult({
         building: b,
@@ -108,7 +124,8 @@ export function AgentAnalysis() {
       if (usingFallback || finished) return
       usingFallback = true
       es?.close()
-      for (const line of FALLBACK_MESSAGES(b)) queue.push(line)
+      const solar = useAnalysisStore.getState().solar
+      for (const line of FALLBACK_MESSAGES(b, solar)) queue.push(line)
     }
 
     // If nothing arrives quickly, assume the backend is down → fallback.

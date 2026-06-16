@@ -2,7 +2,6 @@
 
 import dynamic from 'next/dynamic'
 import { SidebarShell } from '@/components/sidebar/SidebarShell'
-import { DemoPanel } from '@/components/map/DemoPanel'
 import { SearchBar } from '@/components/map/SearchBar'
 import { SearchResultPopup } from '@/components/map/SearchResultPopup'
 
@@ -18,9 +17,6 @@ export default function MapPage() {
       </div>
       <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2">
         <SearchBar />
-      </div>
-      <div className="absolute bottom-6 left-4 z-10">
-        <DemoPanel />
       </div>
       <SearchResultPopup />
       <SidebarShell />

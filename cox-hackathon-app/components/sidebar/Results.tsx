@@ -1,6 +1,6 @@
 'use client'
 
-import { Trophy, Sparkles, Users, ArrowLeft, TriangleAlert } from 'lucide-react'
+import { Trophy, Sparkles, Users, ArrowLeft, TriangleAlert, Satellite } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -16,7 +16,7 @@ function fmtTons(t: number): string {
   return t >= 10 ? `${Math.round(t)}` : t.toFixed(1)
 }
 
-function whyThisRoof(o: ScoredOption, b: Building, p: UserPreferences): string {
+function whyThisRoof(o: ScoredOption, b: Building, p: UserPreferences, roofAreaSqFt: number): string {
   const age = b.yearBuilt < 1980 ? `the ${b.yearBuilt} structure` : `this ${b.yearBuilt} building`
   const roi = o.roiMonths < 900 ? `pays back in about ${o.roiMonths} months` : `delivers long-term value`
   const goal =
@@ -27,7 +27,7 @@ function whyThisRoof(o: ScoredOption, b: Building, p: UserPreferences): string {
         : p.primaryGoal === 'community'
           ? 'anchors a block-wide transformation'
           : 'cuts your operating costs'
-  return `On ${b.roofAreaSqFt.toLocaleString()} sq ft of ${b.roofType.toLowerCase()} roof, ${o.name} fits ${age} (load OK at ${b.maxLoadPSF} lbs/sq ft), ${roi}, and ${goal}.`
+  return `On ${roofAreaSqFt.toLocaleString()} sq ft of ${b.roofType.toLowerCase()} roof, ${o.name} fits ${age} (load OK at ${b.maxLoadPSF} lbs/sq ft), ${roi}, and ${goal}.`
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -43,6 +43,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 export function Results() {
   const result = useAnalysisStore((s) => s.result)
+  const solar = useAnalysisStore((s) => s.solar)
   const advanceTo = useMapStore((s) => s.advanceTo)
   const showCommunity = useMapStore((s) => s.showCommunityLayer)
   const toggleCommunity = useMapStore((s) => s.toggleCommunityLayer)
@@ -51,9 +52,21 @@ export function Results() {
   const { building: b, preferences: p, rankedOptions, communityBonus: cb } = result
   const top = rankedOptions[0]
   const rest = rankedOptions.slice(1, 4)
+  const roofAreaSqFt = solar?.roofAreaSqFt ?? b.roofAreaSqFt
 
   return (
     <div className="flex flex-col gap-5 p-5">
+      {/* Live-data banner — the analysis used real Google Solar measurements */}
+      {solar && (
+        <div className="flex items-center gap-2 rounded-lg border border-canopy-green/30 bg-canopy-green/5 px-3 py-2 text-xs text-canopy-green">
+          <Satellite className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Analysis used live Google Solar data · {roofAreaSqFt.toLocaleString()} ft² roof ·{' '}
+            {solar.annualKwh.toLocaleString()} kWh/yr solar potential
+          </span>
+        </div>
+      )}
+
       {/* Top recommendation */}
       <div className="rounded-2xl border border-canopy-green/40 bg-canopy-green/5 p-4">
         <div className="mb-2 flex items-center gap-2 text-canopy-green">
@@ -64,6 +77,16 @@ export function Results() {
         </div>
         <h3 className="text-xl font-bold text-canopy-text">{top.name}</h3>
         <p className="mt-1 text-sm text-canopy-muted">{top.shortDescription}</p>
+
+        {top.isReal && (
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-canopy-green">
+            <Satellite className="h-3.5 w-3.5" />
+            <span>
+              Live numbers from Google Solar
+              {top.annualKwh ? ` · ${top.annualKwh.toLocaleString()} kWh/yr measured` : ''}
+            </span>
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-3 gap-2.5">
           <Metric label="Upfront" value={`$${Math.round(top.uptrontCost).toLocaleString()}`} />
@@ -83,7 +106,7 @@ export function Results() {
             <Sparkles className="h-3.5 w-3.5" /> Why this roof?
           </p>
           <p className="text-sm leading-relaxed text-canopy-text">
-            {whyThisRoof(top, b, p)}
+            {whyThisRoof(top, b, p, roofAreaSqFt)}
           </p>
         </div>
 

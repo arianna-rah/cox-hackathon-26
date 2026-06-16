@@ -1,8 +1,11 @@
 'use client'
 
+import { useEffect } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { X, Leaf } from 'lucide-react'
 import { useMapStore } from '@/stores/mapStore'
+import { useAnalysisStore } from '@/stores/analysisStore'
+import { fetchSolarData } from '@/lib/solar'
 import { BuildingInfo } from './BuildingInfo'
 import { Preferences } from './Preferences'
 import { AgentAnalysis } from './AgentAnalysis'
@@ -24,7 +27,28 @@ const STEP_TITLES: Record<string, string> = {
 export function SidebarShell() {
   const step = useMapStore((s) => s.sidebarStep)
   const close = useMapStore((s) => s.closeSidebar)
+  const selectedBuilding = useMapStore((s) => s.selectedBuilding)
+  const setSolar = useAnalysisStore((s) => s.setSolar)
+  const setSolarLoading = useAnalysisStore((s) => s.setSolarLoading)
   const open = step !== 'closed'
+
+  // Fetch real Google Solar data as soon as a building is selected, so it's
+  // ready by the time the analysis step runs (and the info screen can show
+  // the measured roof area). Falls back silently if unavailable.
+  useEffect(() => {
+    if (!selectedBuilding) return
+    let cancelled = false
+    setSolar(null)
+    setSolarLoading(true)
+    fetchSolarData(selectedBuilding.lat, selectedBuilding.lng).then((data) => {
+      if (cancelled) return
+      setSolar(data)
+      setSolarLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedBuilding, setSolar, setSolarLoading])
 
   return (
     <AnimatePresence>

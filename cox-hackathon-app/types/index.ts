@@ -49,6 +49,8 @@ export interface ScoredOption extends RoofOption {
   annualNetDollars: number
   roiMonths: number
   warningsForBuilding: string[]
+  isReal?: boolean        // numbers derived from live Google Solar data
+  annualKwh?: number      // measured annual production (solar option only)
 }
 
 export interface CommunityBonus {

@@ -8,6 +8,8 @@ export const ATLANTA = {
   georgiaPowerSolarRebatePerSqFt: 0.15,
   cityGreenBlockGrantTotal: 25000,
   greenBlockMinBuildings: 3,
+  // Market avg installed cost for commercial rooftop solar ($/watt, pre-incentive).
+  solarInstalledCostPerWatt: 2.75,
 }
 
 export const MAP_DEFAULTS = {
