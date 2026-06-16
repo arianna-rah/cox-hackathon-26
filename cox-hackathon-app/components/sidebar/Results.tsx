@@ -1,6 +1,7 @@
 'use client'
 
-import { Trophy, Sparkles, Users, ArrowLeft, TriangleAlert, Satellite } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Trophy, Sparkles, Users, ArrowLeft, TriangleAlert, Satellite, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -41,18 +42,99 @@ function Metric({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** Full detail card — shown for whichever option is currently selected,
+ * whether that selection came from clicking it here or clicking its widget
+ * on the 3D roof. */
+function OptionCard({
+  o,
+  isTop,
+  b,
+  p,
+  roofAreaSqFt,
+}: {
+  o: ScoredOption
+  isTop: boolean
+  b: Building
+  p: UserPreferences
+  roofAreaSqFt: number
+}) {
+  return (
+    <div className="rounded-2xl border-2 border-canopy-green/50 bg-canopy-green/5 p-4 shadow-[0_0_0_3px_rgba(34,197,94,0.08)]">
+      <div className="mb-2 flex items-center gap-2 text-canopy-green">
+        <Trophy className="h-4 w-4" />
+        <span className="text-xs font-mono uppercase tracking-widest">
+          {isTop ? 'Top Recommendation' : 'Selected Option'}
+        </span>
+      </div>
+      <h3 className="text-xl font-bold text-canopy-text">{o.name}</h3>
+      <p className="mt-1 text-sm text-canopy-muted">{o.shortDescription}</p>
+
+      {o.isReal && (
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-canopy-green">
+          <Satellite className="h-3.5 w-3.5" />
+          <span>
+            Live numbers from Google Solar
+            {o.annualKwh ? ` · ${o.annualKwh.toLocaleString()} kWh/yr measured` : ''}
+          </span>
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        <Metric label="Upfront" value={`$${Math.round(o.uptrontCost).toLocaleString()}`} />
+        <Metric label="Payback" value={o.roiMonths < 900 ? `${o.roiMonths} mo` : '—'} />
+        <Metric label="CO₂ / yr" value={`${fmtTons(co2Tons(o, b))} t`} />
+      </div>
+
+      {o.warningsForBuilding.length > 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-canopy-amber/40 bg-canopy-amber/10 p-2.5 text-xs text-canopy-amber">
+          <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{o.warningsForBuilding[0]}</span>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-canopy-green">
+          <Sparkles className="h-3.5 w-3.5" /> Why this roof?
+        </p>
+        <p className="text-sm leading-relaxed text-canopy-text">
+          {whyThisRoof(o, b, p, roofAreaSqFt)}
+        </p>
+      </div>
+
+      {o.rebates.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {o.rebates.map((r) => (
+            <Badge key={r} className="bg-canopy-green/15 text-[11px] font-normal text-canopy-green">
+              {r}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Results() {
   const result = useAnalysisStore((s) => s.result)
   const solar = useAnalysisStore((s) => s.solar)
+  const selectedOptionId = useAnalysisStore((s) => s.selectedOptionId)
+  const setSelectedOptionId = useAnalysisStore((s) => s.setSelectedOptionId)
   const advanceTo = useMapStore((s) => s.advanceTo)
   const showCommunity = useMapStore((s) => s.showCommunityLayer)
   const toggleCommunity = useMapStore((s) => s.toggleCommunityLayer)
+  const selectedRef = useRef<HTMLDivElement>(null)
+
+  // Whenever the selection changes (including from clicking a widget on the
+  // 3D roof), scroll its card into view so the link feels alive.
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [selectedOptionId])
 
   if (!result) return null
   const { building: b, preferences: p, rankedOptions, communityBonus: cb } = result
-  const top = rankedOptions[0]
-  const rest = rankedOptions.slice(1, 4)
   const roofAreaSqFt = solar?.roofAreaSqFt ?? b.roofAreaSqFt
+  const options = rankedOptions.slice(0, 4)
+  const selected = options.find((o) => o.id === selectedOptionId) ?? options[0]
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -67,87 +149,46 @@ export function Results() {
         </div>
       )}
 
-      {/* Top recommendation */}
-      <div className="rounded-2xl border border-canopy-green/40 bg-canopy-green/5 p-4">
-        <div className="mb-2 flex items-center gap-2 text-canopy-green">
-          <Trophy className="h-4 w-4" />
-          <span className="text-xs font-mono uppercase tracking-widest">
-            Top Recommendation
-          </span>
-        </div>
-        <h3 className="text-xl font-bold text-canopy-text">{top.name}</h3>
-        <p className="mt-1 text-sm text-canopy-muted">{top.shortDescription}</p>
-
-        {top.isReal && (
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-canopy-green">
-            <Satellite className="h-3.5 w-3.5" />
-            <span>
-              Live numbers from Google Solar
-              {top.annualKwh ? ` · ${top.annualKwh.toLocaleString()} kWh/yr measured` : ''}
-            </span>
-          </div>
-        )}
-
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
-          <Metric label="Upfront" value={`$${Math.round(top.uptrontCost).toLocaleString()}`} />
-          <Metric label="Payback" value={top.roiMonths < 900 ? `${top.roiMonths} mo` : '—'} />
-          <Metric label="CO₂ / yr" value={`${fmtTons(co2Tons(top, b))} t`} />
-        </div>
-
-        {top.warningsForBuilding.length > 0 && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-canopy-amber/40 bg-canopy-amber/10 p-2.5 text-xs text-canopy-amber">
-            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{top.warningsForBuilding[0]}</span>
-          </div>
-        )}
-
-        <div className="mt-4">
-          <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-canopy-green">
-            <Sparkles className="h-3.5 w-3.5" /> Why this roof?
-          </p>
-          <p className="text-sm leading-relaxed text-canopy-text">
-            {whyThisRoof(top, b, p, roofAreaSqFt)}
-          </p>
-        </div>
-
-        {top.rebates.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {top.rebates.map((r) => (
-              <Badge
-                key={r}
-                className="bg-canopy-green/15 text-[11px] font-normal text-canopy-green"
-              >
-                {r}
-              </Badge>
-            ))}
-          </div>
-        )}
+      {/* Selected option — full detail. Clicking a widget on the 3D roof
+       * expands the matching card here; this is whichever option is
+       * currently linked, defaulting to the top pick. */}
+      <div ref={selectedRef}>
+        <OptionCard o={selected} isTop={selected.id === options[0].id} b={b} p={p} roofAreaSqFt={roofAreaSqFt} />
       </div>
 
-      {/* Other options */}
+      {/* Other options — click one to expand it above and highlight its
+       * matching widget on the roof. */}
       <div>
         <p className="mb-2 text-xs font-mono uppercase tracking-widest text-canopy-muted">
           Other Options
         </p>
         <div className="space-y-1.5">
-          {rest.map((o, i) => (
-            <div
-              key={o.id}
-              className="flex items-center justify-between rounded-lg border border-canopy-border bg-canopy-bg px-3 py-2.5 text-sm"
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-canopy-muted">{i + 2}.</span>
-                <span className="text-canopy-text">{o.name}</span>
-                {!o.feasible && (
-                  <TriangleAlert className="h-3.5 w-3.5 text-canopy-amber" />
-                )}
-              </div>
-              <div className="flex items-center gap-3 font-mono text-xs text-canopy-muted">
-                <span>${Math.round(o.uptrontCost).toLocaleString()}</span>
-                <span>{o.roiMonths < 900 ? `${o.roiMonths} mo` : '—'}</span>
-              </div>
-            </div>
-          ))}
+          {options
+            .filter((o) => o.id !== selected.id)
+            .map((o) => {
+              const rank = options.findIndex((opt) => opt.id === o.id) + 1
+              return (
+                <button
+                  type="button"
+                  key={o.id}
+                  onClick={() => setSelectedOptionId(o.id)}
+                  className="flex w-full items-center justify-between rounded-lg border border-canopy-border bg-canopy-bg px-3 py-2.5 text-left text-sm transition-colors hover:border-canopy-green/50 hover:bg-canopy-green/5"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-canopy-muted">{rank}.</span>
+                    <span className="text-canopy-text">{o.name}</span>
+                    {!o.feasible && (
+                      <TriangleAlert className="h-3.5 w-3.5 text-canopy-amber" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 font-mono text-xs text-canopy-muted">
+                    <span>${Math.round(o.uptrontCost).toLocaleString()}</span>
+                    <span>{o.roiMonths < 900 ? `${o.roiMonths} mo` : '—'}</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </div>
+                </button>
+              )
+            })}
         </div>
       </div>
 

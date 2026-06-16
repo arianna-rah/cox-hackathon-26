@@ -266,32 +266,40 @@ function RoofFeaturePin({
 }) {
   const meta = OPTION_ICON[option.id] ?? { icon: Leaf, color: '#22c55e' }
   const Icon = meta.icon
+  const selectedOptionId = useAnalysisStore((s) => s.selectedOptionId)
+  const setSelectedOptionId = useAnalysisStore((s) => s.setSelectedOptionId)
+  const isSelected = selectedOptionId === option.id
   return (
     <Html position={position} center distanceFactor={9} zIndexRange={[10, 0]}>
-      <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setSelectedOptionId(option.id)
+        }}
+        className="flex flex-col items-center gap-1 bg-transparent p-0 transition-transform"
+        style={{ transform: isSelected ? 'scale(1.18)' : undefined }}
+      >
         <span
           className={`flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-lg ${
-            isTop ? 'border-canopy-green' : 'border-white/80'
+            isSelected
+              ? 'border-white ring-2 ring-canopy-green ring-offset-1 ring-offset-black/40'
+              : isTop
+                ? 'border-canopy-green'
+                : 'border-white/80'
           }`}
           style={{ backgroundColor: meta.color }}
         >
           <Icon className="h-3.5 w-3.5 text-black/80" />
         </span>
-        <span className="whitespace-nowrap rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white shadow">
+        <span
+          className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium text-white shadow ${
+            isSelected ? 'bg-canopy-green/90 text-black' : 'bg-black/75'
+          }`}
+        >
           {isTop ? `★ ${option.name}` : option.name}
         </span>
-      </div>
-    </Html>
-  )
-}
-
-function ScanningPin({ position }: { position: [number, number, number] }) {
-  return (
-    <Html position={position} center distanceFactor={9} zIndexRange={[10, 0]}>
-      <div className="flex items-center gap-1.5 whitespace-nowrap rounded bg-black/75 px-2 py-1 text-[11px] text-white shadow">
-        <Loader2 className="h-3 w-3 animate-spin text-canopy-green" />
-        Scanning roof for opportunities…
-      </div>
+      </button>
     </Html>
   )
 }
@@ -379,13 +387,9 @@ function Scene({ dsmTwin, twinLoading }: { dsmTwin: BuildingTwin | null; twinLoa
         </>
       )}
 
-      {featureOptions.length > 0 ? (
-        featureOptions.map((opt, i) => (
-          <RoofFeaturePin key={opt.id} option={opt} isTop={i === 0} position={anchors[i]} />
-        ))
-      ) : (
-        <ScanningPin position={[0, topY + 0.45, 0]} />
-      )}
+      {featureOptions.map((opt, i) => (
+        <RoofFeaturePin key={opt.id} option={opt} isTop={i === 0} position={anchors[i]} />
+      ))}
 
       <Grid
         position={[0, -0.02, 0]}
