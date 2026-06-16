@@ -51,6 +51,9 @@ const COLORS = {
   roofMembrane: '#2b2f33',
   parapet: '#11151a',
   grid: '#1e3a22',
+  // Solid canopy-themed green/grey used for measured roof planes — shaded by
+  // the scene's lighting instead of colour-coded by sun exposure.
+  roofAccent: '#3f5a4a',
 }
 
 const STORIES_BY_TYPE: Record<string, number> = {
@@ -219,25 +222,15 @@ function GenericRoof({ width, depth, bodyHeight }: { width: number; depth: numbe
   )
 }
 
-// Warm "good solar surface" colour vs. cool shaded slope, lerped by how
-// south-facing (and therefore sun-favourable) the real plane is.
-const SOLAR_WARM = new THREE.Color('#caa85a')
-const SOLAR_COOL = new THREE.Color('#3a4654')
-
 /** One real roof plane, tilted to its measured pitch & azimuth. */
 function TwinRoofPlane({ plane, scale, baseY }: { plane: ScenePlane; scale: number; baseY: number }) {
-  const { quaternion, color } = useMemo(() => {
+  const quaternion = useMemo(() => {
     const az = (plane.azimuthDeg * Math.PI) / 180
     const pitch = Math.min(plane.pitchDeg, 38) * (Math.PI / 180) // cap for sane visuals
     // Tilt about the horizontal axis perpendicular to the plane's facing
     // direction, keeping its plan footprint axis-aligned with the bbox.
     const axis = new THREE.Vector3(Math.cos(az), 0, Math.sin(az))
-    const q = new THREE.Quaternion().setFromAxisAngle(axis, pitch)
-    // 1 = faces due south (best sun, northern hemisphere), 0 = due north.
-    const sunScore = (1 + Math.cos(az - Math.PI)) / 2
-    const flatness = 1 - Math.min(plane.pitchDeg, 30) / 30
-    const c = SOLAR_COOL.clone().lerp(SOLAR_WARM, sunScore * (1 - flatness * 0.5))
-    return { quaternion: q, color: c }
+    return new THREE.Quaternion().setFromAxisAngle(axis, pitch)
   }, [plane])
 
   return (
@@ -248,7 +241,7 @@ function TwinRoofPlane({ plane, scale, baseY }: { plane: ScenePlane; scale: numb
       receiveShadow
     >
       <boxGeometry args={[plane.width * scale, 0.07, plane.depth * scale]} />
-      <meshStandardMaterial color={color} roughness={0.82} metalness={0.05} />
+      <meshStandardMaterial color={COLORS.roofAccent} roughness={0.82} metalness={0.05} />
     </mesh>
   )
 }
@@ -303,7 +296,7 @@ function ScanningPin({ position }: { position: [number, number, number] }) {
   )
 }
 
-function Scene({ dsmTwin }: { dsmTwin: BuildingTwin | null }) {
+function Scene({ dsmTwin, twinLoading }: { dsmTwin: BuildingTwin | null; twinLoading: boolean }) {
   const building = useMapStore((s) => s.selectedBuilding)
   const solar = useAnalysisStore((s) => s.solar)
   const result = useAnalysisStore((s) => s.result)
@@ -366,7 +359,12 @@ function Scene({ dsmTwin }: { dsmTwin: BuildingTwin | null }) {
       <ambientLight intensity={0.7} />
       <directionalLight position={[6, 9, 4]} intensity={1.4} castShadow />
 
-      {dsmTwin ? (
+      {twinLoading ? (
+        // Still checking for the photogrammetric twin — render nothing
+        // rather than flash a placeholder; the correct model appears the
+        // moment we know which one applies.
+        null
+      ) : dsmTwin ? (
         <BuildingTwinMesh twin={dsmTwin} scale={dsmScale} />
       ) : (
         <>
@@ -475,7 +473,7 @@ export default function BuildingScene3D() {
       <Canvas shadows camera={{ position: [9, 7.5, 9], fov: 38 }} dpr={[1, 2]}>
         <color attach="background" args={['#0a1a0f']} />
         <Suspense fallback={null}>
-          <Scene dsmTwin={twin} />
+          <Scene dsmTwin={twin} twinLoading={loading} />
           <Environment preset="city" />
         </Suspense>
       </Canvas>
