@@ -10,6 +10,7 @@ narrative content is Canopy-specific rooftop analysis. The agent:
 
 import os
 import json
+import re
 import asyncio
 from typing import AsyncGenerator
 
@@ -27,11 +28,14 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 _client = None
 
 
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+
 def _get_client():
     global _client
     if _client is None and _GENAI_AVAILABLE and GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
-        _client = genai.GenerativeModel("gemini-1.5-pro")
+        _client = genai.GenerativeModel(GEMINI_MODEL)
     return _client
 
 

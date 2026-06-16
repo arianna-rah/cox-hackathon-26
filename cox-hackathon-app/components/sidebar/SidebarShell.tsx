@@ -24,6 +24,10 @@ const STEP_TITLES: Record<string, string> = {
   results: 'Recommendations',
 }
 
+const STEP_SUBTITLES: Record<string, string> = {
+  preferences: 'Tell us what matters most for this roof.',
+}
+
 export function SidebarShell() {
   const step = useMapStore((s) => s.sidebarStep)
   const close = useMapStore((s) => s.closeSidebar)
@@ -71,6 +75,9 @@ export function SidebarShell() {
                 <h2 className="text-sm font-semibold text-canopy-text">
                   {STEP_TITLES[step] ?? ''}
                 </h2>
+                {STEP_SUBTITLES[step] && (
+                  <p className="mt-0.5 text-xs text-canopy-muted">{STEP_SUBTITLES[step]}</p>
+                )}
               </div>
             </div>
             <button

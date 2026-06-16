@@ -49,6 +49,8 @@ class UserPreferences(BaseModel):
     # 0 = max impact, 1 = fastest ROI
     cost_sensitivity: float = Field(0.5, ge=0, le=1, alias="costSensitivity")
     primary_goal: PrimaryGoal = Field("savings", alias="primaryGoal")
+    # Whether to include block-level Green Block benefits in the analysis.
+    include_community: bool = Field(True, alias="includeCommunity")
 
     model_config = {"populate_by_name": True}
 
@@ -120,5 +122,9 @@ class AnalysisResult(BaseModel):
     community_bonus: CommunityBonus = Field(..., alias="communityBonus")
     agent_summary: str = Field("", alias="agentSummary")
     solar_insights: Optional[dict] = Field(None, alias="solarInsights")
+    # Full Gemini-authored (or deterministic-fallback) dashboard JSON. Kept as a
+    # free-form dict so the strict Gemini schema can evolve without breaking the
+    # response model; the frontend's DashboardAnalysis type mirrors its shape.
+    dashboard_analysis: Optional[dict] = Field(None, alias="dashboardAnalysis")
 
     model_config = {"populate_by_name": True}

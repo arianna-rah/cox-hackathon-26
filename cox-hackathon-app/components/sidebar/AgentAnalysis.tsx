@@ -5,8 +5,47 @@ import { motion } from 'framer-motion'
 import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
 import { scoreAndRankOptions, calculateCommunityBonus, realSolarEconomics } from '@/lib/scoring'
-import type { Building } from '@/types'
+import { buildFallbackDashboard } from '@/lib/dashboard'
+import type {
+  Building,
+  UserPreferences,
+  ScoredOption,
+  CommunityBonus,
+  DashboardAnalysis,
+} from '@/types'
 import type { SolarData } from '@/lib/solar'
+
+interface BackendAnalysis {
+  rankedOptions?: ScoredOption[]
+  communityBonus?: CommunityBonus
+  dashboardAnalysis?: DashboardAnalysis
+}
+
+/**
+ * POST the selected building + preferences to the backend, which runs Google
+ * Solar enrichment, deterministic scoring, the community bonus, and Gemini's
+ * dashboard generation. Returns null on any failure so the caller falls back
+ * to the local deterministic dashboard. The backend never receives API keys —
+ * it holds them server-side.
+ */
+async function fetchBackendAnalysis(
+  building: Building,
+  preferences: UserPreferences,
+): Promise<BackendAnalysis | null> {
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ building, preferences }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as BackendAnalysis & { error?: string }
+    if (data?.error) return null
+    return data
+  } catch {
+    return null
+  }
+}
 
 const PHASES = [
   'Roof Assessment',
@@ -74,6 +113,15 @@ export function AgentAnalysis() {
 
     const b = building
     const p = preferences
+    const store = useAnalysisStore.getState
+
+    // Kick off the real analysis (backend → Solar + scoring + Gemini) immediately,
+    // in parallel with the thinking animation. The SSE stream is only for visual
+    // narration; the dashboard comes from this result (or the local fallback).
+    store().setAnalysisLoading(true)
+    const backendPromise = fetchBackendAnalysis(b, p).finally(() =>
+      store().setAnalysisLoading(false),
+    )
 
     // Display pacing is decoupled from network delivery: incoming SSE
     // messages are queued and revealed on a fixed cadence, so the narration
@@ -88,23 +136,34 @@ export function AgentAnalysis() {
     let receivedAny = false
     let es: EventSource | null = null
 
-    const finalize = () => {
+    const finalize = async () => {
       if (finished) return
       finished = true
       es?.close()
       clearInterval(ticker)
       clearTimeout(watchdog)
-      // Use whatever real Google Solar data has loaded by now (fetched when the
-      // building was selected); null falls back to modelled estimates.
+
+      // Local deterministic scoring — the fallback source of truth and what the
+      // option-comparison charts render off.
       const solar = useAnalysisStore.getState().solar
-      const ranked = scoreAndRankOptions(b, p, solar)
-      const community = calculateCommunityBonus(b)
-      setResult({
-        building: b,
-        preferences: p,
-        rankedOptions: ranked,
-        communityBonus: community,
-      })
+      const localRanked = scoreAndRankOptions(b, p, solar)
+      const localCommunity = calculateCommunityBonus(b)
+
+      // Prefer the backend (Gemini) dashboard. Cap the wait so the UI never
+      // hangs on a slow/unreachable backend; fall back to the local dashboard.
+      const backend = await Promise.race([
+        backendPromise,
+        new Promise<null>((r) => setTimeout(() => r(null), 9000)),
+      ])
+
+      const ranked = backend?.rankedOptions?.length ? backend.rankedOptions : localRanked
+      const community = backend?.communityBonus ?? localCommunity
+      const dashboard =
+        backend?.dashboardAnalysis ??
+        buildFallbackDashboard(b, p, localRanked, localCommunity, solar)
+
+      setResult({ building: b, preferences: p, rankedOptions: ranked, communityBonus: community })
+      useAnalysisStore.getState().setDashboardAnalysis(dashboard)
       setTimeout(() => advanceTo('results'), 650)
     }
 
@@ -116,7 +175,7 @@ export function AgentAnalysis() {
         revealed += 1
         setPhase(Math.min(4, Math.floor((revealed - 1) / 4) + 1))
       } else if (streamDone || usingFallback) {
-        finalize()
+        void finalize()
       }
     }, REVEAL_MS)
 
