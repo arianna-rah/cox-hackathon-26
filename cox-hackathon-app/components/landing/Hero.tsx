@@ -6,7 +6,7 @@ import { Leaf, ArrowRight } from 'lucide-react'
 
 export function Hero() {
   return (
-    <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-hidden px-6 text-center">
+    <section className="relative flex min-h-screen flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
       {/* ambient gradient glow */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-1/3 h-[60vh] w-[60vh] -translate-x-1/2 -translate-y-1/2 rounded-full bg-canopy-green/20 blur-[120px]" />

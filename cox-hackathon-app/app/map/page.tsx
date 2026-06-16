@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { SidebarShell } from '@/components/sidebar/SidebarShell'
 import { SearchBar } from '@/components/map/SearchBar'
 import { SearchResultPopup } from '@/components/map/SearchResultPopup'
+import { MapModeToggle } from '@/components/map/MapModeToggle'
 import { useMapStore } from '@/stores/mapStore'
 
 const MapContainer = dynamic(() => import('@/components/map/MapContainer'), {
@@ -20,7 +21,7 @@ export default function MapPage() {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-canopy-bg">
       <div className="absolute inset-0 z-0">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {selectedBuilding ? (
             <motion.div
               key="scene3d"
@@ -47,9 +48,12 @@ export default function MapPage() {
         </AnimatePresence>
       </div>
       {!selectedBuilding && (
-        <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2">
-          <SearchBar />
-        </div>
+        <>
+          <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2">
+            <SearchBar />
+          </div>
+          <MapModeToggle />
+        </>
       )}
       <SearchResultPopup />
       <SidebarShell />

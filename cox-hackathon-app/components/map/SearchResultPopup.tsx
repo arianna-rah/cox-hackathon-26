@@ -150,7 +150,7 @@ export function SearchResultPopup() {
               ) : (
                 <>
                   <XCircle className="h-3.5 w-3.5 shrink-0" />
-                  Not a building — analysis unavailable
+                  No rooftop detected here — select a building to analyze
                 </>
               )}
             </div>
