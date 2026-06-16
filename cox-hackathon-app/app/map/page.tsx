@@ -1,23 +1,56 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { AnimatePresence, motion } from 'framer-motion'
 import { SidebarShell } from '@/components/sidebar/SidebarShell'
 import { SearchBar } from '@/components/map/SearchBar'
 import { SearchResultPopup } from '@/components/map/SearchResultPopup'
+import { useMapStore } from '@/stores/mapStore'
 
 const MapContainer = dynamic(() => import('@/components/map/MapContainer'), {
   ssr: false,
 })
+const BuildingScene3D = dynamic(() => import('@/components/scene3d/BuildingScene3D'), {
+  ssr: false,
+})
 
 export default function MapPage() {
+  const selectedBuilding = useMapStore((s) => s.selectedBuilding)
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-canopy-bg">
       <div className="absolute inset-0 z-0">
-        <MapContainer />
+        <AnimatePresence mode="wait">
+          {selectedBuilding ? (
+            <motion.div
+              key="scene3d"
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <BuildingScene3D />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="map"
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <MapContainer />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2">
-        <SearchBar />
-      </div>
+      {!selectedBuilding && (
+        <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2">
+          <SearchBar />
+        </div>
+      )}
       <SearchResultPopup />
       <SidebarShell />
     </div>
