@@ -4,6 +4,93 @@ import { ATLANTA } from './constants'
 import { NEIGHBOR_BUILDINGS } from './buildings'
 import type { SolarData } from './solar'
 
+// Commercial electricity-use intensity (kWh per sq ft of floor area per year),
+// rounded from EIA CBECS 2018, Table C15 (Electricity consumption & intensity
+// by principal building activity):
+//   https://www.eia.gov/consumption/commercial/data/2018/ce/pdf/c15.pdf
+// 'residential' is NOT a CBECS activity (CBECS is commercial only) — that value
+// is an approximate multifamily figure. Used only to estimate a building's
+// annual electricity use when the owner hasn't entered their real bill.
+const ELECTRICITY_EUI_KWH_SQFT: Record<string, number> = {
+  office: 17,
+  retail: 14,
+  warehouse: 5,
+  residential: 9,
+}
+// Conservative floor-count assumptions for the energy estimate. Kept modest
+// (we can't know a searched building's real height), so we don't overstate use.
+const FLOORS_BY_TYPE: Record<string, number> = {
+  office: 3,
+  retail: 2,
+  warehouse: 2,
+  residential: 3,
+}
+
+const ENERGY_SAVING_IDS = new Set(['cool-roof', 'green-roof-extensive', 'green-roof-intensive'])
+
+export interface OptionEnergyImpact {
+  buildingAnnualKwh: number          // whole-building electricity use
+  usingActual: boolean               // true = from the owner's entered bill, not modeled
+  optionKwh: number | null           // kWh the option produces (solar) or saves (HVAC)
+  offsetPct: number | null           // optionKwh as a % of building use
+  annualDollars: number              // $/yr benefit (savings or revenue)
+  kind: 'production' | 'savings' | 'revenue' | 'stormwater'
+}
+
+/** Convert an average monthly electric bill ($) to annual kWh at the local rate. */
+export function billToAnnualKwh(monthlyBill: number): number {
+  return Math.round((monthlyBill * 12) / ATLANTA.electricityRateDollarsPerKwh)
+}
+
+/**
+ * Estimate the building's annual electricity use and the recommended option's
+ * energy impact. Works for ANY option, not just solar:
+ *   solar      → energy produced (real measured kWh)
+ *   cool/green → cooling energy saved (dollars saved ÷ rate)
+ *   beekeeping → revenue (no energy offset)
+ *   rainwater  → stormwater savings (no energy offset)
+ * Building use is the owner's real figure when `overrideAnnualKwh` is given,
+ * else modeled (floor area × CBECS intensity).
+ */
+export function optionEnergyImpact(
+  b: Building,
+  option: ScoredOption | null,
+  solar?: SolarData | null,
+  overrideAnnualKwh?: number | null,
+): OptionEnergyImpact {
+  const roofArea = solar?.roofAreaSqFt ?? b.roofAreaSqFt
+  const floors = FLOORS_BY_TYPE[b.buildingType] ?? 3
+  const eui = ELECTRICITY_EUI_KWH_SQFT[b.buildingType] ?? 14
+  const usingActual = overrideAnnualKwh != null && overrideAnnualKwh > 0
+  const buildingAnnualKwh = usingActual
+    ? Math.round(overrideAnnualKwh as number)
+    : Math.round(roofArea * floors * eui)
+  const annualDollars = option ? Math.round(option.annualNetDollars) : 0
+
+  let optionKwh: number | null = null
+  let kind: OptionEnergyImpact['kind'] = 'savings'
+
+  if (option?.id === 'solar') {
+    kind = 'production'
+    optionKwh = solar?.annualKwh ?? option.annualKwh ?? null
+  } else if (option && ENERGY_SAVING_IDS.has(option.id)) {
+    kind = 'savings'
+    // These options save HVAC/energy dollars; convert back to kWh avoided.
+    optionKwh = annualDollars > 0 ? Math.round(annualDollars / ATLANTA.electricityRateDollarsPerKwh) : null
+  } else if (option?.id === 'rainwater') {
+    kind = 'stormwater'
+  } else if (option?.id === 'beekeeping') {
+    kind = 'revenue'
+  }
+
+  const offsetPct =
+    optionKwh != null && buildingAnnualKwh > 0
+      ? Math.min(100, Math.round((optionKwh / buildingAnnualKwh) * 100))
+      : null
+
+  return { buildingAnnualKwh, usingActual, optionKwh, offsetPct, annualDollars, kind }
+}
+
 /**
  * Real solar economics from measured Google Solar data + real Atlanta rates.
  *   cost    = installed $/watt × measured capacity, minus the 30% federal ITC

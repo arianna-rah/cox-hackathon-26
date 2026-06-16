@@ -82,13 +82,27 @@ def summarize_for_canopy(raw: dict) -> dict:
     configs = sp.get("solarPanelConfigs", [])
     max_kwh = max((c.get("yearlyEnergyDcKwh", 0) for c in configs), default=0)
 
+    # How much of the roof the recommended panel layout covers (the rest is
+    # setbacks, edges, equipment, and shaded/wrong-facing segments).
+    roof_area_m2 = whole.get("areaMeters2")
+    array_area_m2 = sp.get("maxArrayAreaMeters2")
+    if not array_area_m2:
+        panel_m2 = sp.get("panelWidthMeters", 1.045) * sp.get("panelHeightMeters", 1.879)
+        array_area_m2 = sp.get("maxArrayPanelsCount", 0) * panel_m2
+    roof_coverage_pct = (
+        min(100, max(0, round((array_area_m2 / roof_area_m2) * 100)))
+        if roof_area_m2 and array_area_m2 else None
+    )
+
     return {
         "max_array_panels_count": sp.get("maxArrayPanelsCount", 0),
         "max_sunshine_hours_per_year": max_sunshine,
         "sun_exposure_hrs_per_day": round(max_sunshine / 365, 1) if max_sunshine else None,
         "carbon_offset_factor_kg_per_mwh": sp.get("carbonOffsetFactorKgPerMwh", 400),
-        "roof_area_m2": whole.get("areaMeters2"),
+        "roof_area_m2": roof_area_m2,
         "max_annual_kwh": max_kwh,
+        "panel_area_m2": round(array_area_m2) if array_area_m2 else None,
+        "roof_coverage_pct": roof_coverage_pct,
     }
 
 

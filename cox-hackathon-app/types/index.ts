@@ -22,6 +22,9 @@ export interface UserPreferences {
   costSensitivity: number       // 0 = max impact, 1 = fastest ROI
   primaryGoal: 'savings' | 'revenue' | 'environment' | 'community'
   includeCommunity: boolean     // include block-level Green Block benefits
+  // Optional: owner's average monthly electric bill ($). When provided we use
+  // it for real building energy use instead of the modeled estimate.
+  monthlyElectricBill: number | null
 }
 
 export interface RoofOption {

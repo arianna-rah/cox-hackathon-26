@@ -20,6 +20,7 @@ import {
   Building2,
   ShieldCheck,
   Bot,
+  Zap,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -35,6 +36,8 @@ import { Separator } from '@/components/ui/separator'
 import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
 import { buildFallbackDashboard } from '@/lib/dashboard'
+import { optionEnergyImpact, billToAnnualKwh } from '@/lib/scoring'
+import { coveragePlan } from '@/lib/coverage'
 import type { DashboardAnalysis, DashRisk } from '@/types'
 
 // ── formatting ──
@@ -210,6 +213,17 @@ export function Results() {
   // comparison list can drive — and reflect — the shared 3D selection.
   const idByName = new Map((result?.rankedOptions ?? []).map((o) => [o.name, o.id]))
 
+  // The recommended scored option (matched from the dashboard recommendation),
+  // so energy impact and roof-use are specific to whatever actually won.
+  const recOption =
+    result?.rankedOptions.find((o) => o.name === rec.name) ?? result?.rankedOptions[0] ?? null
+  // Use the owner's real bill (if they entered one) for building energy use.
+  const overrideKwh = result?.preferences.monthlyElectricBill
+    ? billToAnnualKwh(result.preferences.monthlyElectricBill)
+    : null
+  const energy = result ? optionEnergyImpact(result.building, recOption, solar, overrideKwh) : null
+  const coverage = recOption ? coveragePlan(recOption.id, solar) : null
+
   const savingsData = cmp.map((o) => ({
     name: shortName(o.name),
     value: o.annualSavings ?? 0,
@@ -286,6 +300,104 @@ export function Results() {
           <Metric label="20-year value" value={money(m.twentyYearValue)} good />
         </div>
       </Section>
+
+      {/* ── 2b. Energy & roof use (specific to the recommended option) ── */}
+      {energy && (
+        <Section icon={Zap} title="Energy & Roof Use">
+          <div className="rounded-xl border border-canopy-green/30 bg-canopy-green/5 p-4">
+            <div className="grid grid-cols-2 gap-2.5">
+              <Metric
+                label={energy.usingActual ? 'Building uses (actual)' : 'Building uses (est.)'}
+                value={`${energy.buildingAnnualKwh.toLocaleString()} kWh/yr`}
+              />
+              {energy.kind === 'production' && (
+                <Metric
+                  label="Solar produces"
+                  value={energy.optionKwh ? `${energy.optionKwh.toLocaleString()} kWh/yr` : '—'}
+                  good
+                />
+              )}
+              {energy.kind === 'savings' && (
+                <Metric
+                  label="Energy saved"
+                  value={energy.optionKwh ? `~${energy.optionKwh.toLocaleString()} kWh/yr` : '—'}
+                  good
+                />
+              )}
+              {energy.kind === 'revenue' && (
+                <Metric label="Annual revenue" value={`${money(energy.annualDollars)}/yr`} good />
+              )}
+              {energy.kind === 'stormwater' && (
+                <Metric label="Stormwater saved" value={`${money(energy.annualDollars)}/yr`} good />
+              )}
+            </div>
+
+            {energy.offsetPct != null && (
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-canopy-muted">
+                    <Zap className="h-3 w-3 text-canopy-green" />
+                    {energy.kind === 'production'
+                      ? 'Covers your electricity'
+                      : 'Cuts your electricity use'}
+                  </span>
+                  <span className="font-mono font-semibold text-canopy-green">
+                    {energy.offsetPct}%
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-canopy-border">
+                  <div
+                    className="h-full rounded-full bg-canopy-green"
+                    style={{ width: `${energy.offsetPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {(energy.kind === 'production' || energy.kind === 'savings') &&
+              energy.annualDollars > 0 && (
+                <div className="mt-3 flex items-center justify-between border-t border-canopy-border pt-2 text-sm">
+                  <span className="text-canopy-muted">Estimated energy savings</span>
+                  <span className="font-mono font-semibold text-canopy-green">
+                    {money(energy.annualDollars)}/yr
+                  </span>
+                </div>
+              )}
+
+            {/* Option-specific roof use: how much to cover and what to keep clear */}
+            {coverage && (
+              <div className="mt-3 border-t border-canopy-border pt-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5 text-canopy-muted">
+                    <Building2 className="h-3.5 w-3.5 text-canopy-green" /> {coverage.label}
+                  </span>
+                  <span className="font-mono font-semibold text-canopy-green">
+                    {coverage.mode === 'catchment'
+                      ? 'full roof'
+                      : coverage.mode === 'footprint'
+                        ? `~${coverage.coveredPct}% of roof`
+                        : `${coverage.coveredPct}% of roof`}
+                  </span>
+                </div>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-canopy-border">
+                  <div
+                    className="h-full bg-canopy-green"
+                    style={{ width: `${coverage.coveredPct}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-canopy-muted">{coverage.note}</p>
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-canopy-muted">
+            {energy.usingActual
+              ? 'Building use is from your entered bill. '
+              : 'Building use is estimated from floor area and type (EIA CBECS 2018). '}
+            Solar production and panel coverage are measured by the Google Solar API; other figures
+            are modeled estimates.
+          </p>
+        </Section>
+      )}
 
       {/* ── 3. Cost & ROI breakdown ── */}
       <Section icon={DollarSign} title="Cost & ROI Breakdown">

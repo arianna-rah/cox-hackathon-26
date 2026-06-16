@@ -25,7 +25,7 @@ export interface RoofPlane {
 
 /** Measured, real-world solar facts for one rooftop. */
 export interface SolarData {
-  roofAreaSqFt: number              // Google-measured usable roof area
+  roofAreaSqFt: number              // Google-measured whole-roof area
   maxPanels: number                 // panels in the best-producing config
   panelCapacityWatts: number        // watts per panel
   totalCapacityWatts: number        // maxPanels × panelCapacityWatts
@@ -33,6 +33,8 @@ export interface SolarData {
   sunExposureHrsPerDay: number      // derived from sunshine hours
   annualKwh: number                 // best config yearly DC production
   carbonOffsetFactorKgPerMwh: number // grid carbon intensity for this location
+  panelAreaSqFt: number             // area the recommended panel layout covers
+  roofCoveragePct: number           // % of the roof that layout covers (0–100)
   roofPlanes: RoofPlane[]           // real per-segment roof geometry (twin)
   footprintM: { width: number; depth: number } | null // real building footprint
 }
@@ -62,7 +64,10 @@ interface RawSolarResponse {
   boundingBox?: { sw?: RawLatLng; ne?: RawLatLng }
   solarPotential?: {
     panelCapacityWatts?: number
+    panelWidthMeters?: number
+    panelHeightMeters?: number
     maxArrayPanelsCount?: number
+    maxArrayAreaMeters2?: number
     maxSunshineHoursPerYear?: number
     carbonOffsetFactorKgPerMwh?: number
     wholeRoofStats?: { areaMeters2?: number }
@@ -165,6 +170,15 @@ export function summarizeSolar(raw: RawSolarResponse): SolarData | null {
 
   if (annualKwh <= 0 || maxPanels <= 0) return null
 
+  // Area the recommended panel layout occupies. Prefer Google's own layout
+  // area; else derive from panel dimensions × count. The gap between this and
+  // the whole-roof area is the part of the roof Google won't place panels on
+  // (setbacks, edges, shaded or wrong-facing segments, obstructions).
+  const panelM2 = (sp.panelWidthMeters ?? 1.045) * (sp.panelHeightMeters ?? 1.879)
+  const arrayAreaM2 = sp.maxArrayAreaMeters2 ?? maxPanels * panelM2
+  const roofCoveragePct =
+    areaM2 > 0 ? Math.min(100, Math.max(0, Math.round((arrayAreaM2 / areaM2) * 100))) : 0
+
   return {
     roofAreaSqFt: Math.round(areaM2 * M2_TO_SQFT),
     maxPanels,
@@ -174,6 +188,8 @@ export function summarizeSolar(raw: RawSolarResponse): SolarData | null {
     sunExposureHrsPerDay: maxSun ? Math.round((maxSun / 365) * 10) / 10 : 0,
     annualKwh: Math.round(annualKwh),
     carbonOffsetFactorKgPerMwh: sp.carbonOffsetFactorKgPerMwh ?? 400,
+    panelAreaSqFt: Math.round(arrayAreaM2 * M2_TO_SQFT),
+    roofCoveragePct,
     roofPlanes: extractRoofPlanes(raw),
     footprintM: extractFootprint(raw),
   }

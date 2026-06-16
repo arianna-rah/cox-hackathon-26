@@ -51,6 +51,9 @@ class UserPreferences(BaseModel):
     primary_goal: PrimaryGoal = Field("savings", alias="primaryGoal")
     # Whether to include block-level Green Block benefits in the analysis.
     include_community: bool = Field(True, alias="includeCommunity")
+    # Optional: owner's avg monthly electric bill ($). Used for real building
+    # energy use instead of the modeled estimate when provided.
+    monthly_electric_bill: Optional[float] = Field(None, alias="monthlyElectricBill")
 
     model_config = {"populate_by_name": True}
 

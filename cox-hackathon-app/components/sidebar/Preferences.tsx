@@ -74,14 +74,17 @@ export function Preferences() {
   const [sensitivity, setSensitivity] = useState(50) // 0 = impact, 100 = payback
   const [goal, setGoal] = useState<UserPreferences['primaryGoal']>('savings')
   const [includeCommunity, setIncludeCommunity] = useState(true)
+  const [bill, setBill] = useState('') // optional avg monthly electric bill ($)
 
   const run = () => {
     if (!building) return
+    const billNum = parseFloat(bill)
     setPreferences({
       budgetDollars: budget,
       costSensitivity: sensitivity / 100,
       primaryGoal: goal,
       includeCommunity,
+      monthlyElectricBill: Number.isFinite(billNum) && billNum > 0 ? billNum : null,
     })
     advanceTo('analysis')
   }
@@ -159,6 +162,29 @@ export function Preferences() {
         </div>
         <p className="mt-2 text-[11px] text-canopy-muted">
           We&apos;ll prioritize options within or near your budget.
+        </p>
+      </div>
+
+      {/* ── Optional: actual energy use ── */}
+      <div>
+        <label className="text-sm font-medium text-canopy-text">
+          Avg. monthly electric bill <span className="text-canopy-muted">(optional)</span>
+        </label>
+        <div className="mt-2 flex items-center rounded-xl border border-canopy-border bg-canopy-bg px-3 focus-within:border-canopy-green/60">
+          <span className="text-canopy-muted">$</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={bill}
+            onChange={(e) => setBill(e.target.value)}
+            placeholder="e.g. 4200"
+            className="w-full bg-transparent px-2 py-2.5 text-sm text-canopy-text placeholder:text-canopy-muted focus:outline-none"
+          />
+          <span className="text-xs text-canopy-muted">/mo</span>
+        </div>
+        <p className="mt-1.5 text-[11px] text-canopy-muted">
+          Makes energy savings exact. Leave blank and we estimate from building size.
         </p>
       </div>
 
