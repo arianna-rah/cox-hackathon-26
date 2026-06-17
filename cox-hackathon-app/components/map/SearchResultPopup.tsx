@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Loader2, MapPin, ArrowRight, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMapStore, type SearchPlace } from '@/stores/mapStore'
+import { useAnalysisStore } from '@/stores/analysisStore'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { Building } from '@/types'
@@ -193,6 +194,7 @@ export function SearchResultPopup() {
     setLoading(true)
     try {
       const building = await buildingFromPlace(place.name, place.address, place.lat, place.lng, place.category, place.osmType)
+      useAnalysisStore.getState().reset()
       selectBuilding(building)
     } finally {
       setLoading(false)

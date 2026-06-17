@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { Building, UserPreferences, SidebarStep } from '@/types'
-import { useAnalysisStore } from './analysisStore'
 
 export interface SearchPlace {
   name: string
@@ -38,16 +37,10 @@ export const useMapStore = create<MapState>((set) => ({
   showCommunityLayer: false,
   searchPlace: null,
   mapMode: 'pan',
-  selectBuilding: (b) => {
-    useAnalysisStore.getState().reset()
-    set({ selectedBuilding: b, sidebarStep: 'info' })
-  },
+  selectBuilding: (b) => set({ selectedBuilding: b, sidebarStep: 'info' }),
   updateSelectedBuilding: (patch) =>
     set((s) => (s.selectedBuilding ? { selectedBuilding: { ...s.selectedBuilding, ...patch } } : {})),
-  closeSidebar: () => {
-    useAnalysisStore.getState().reset()
-    set({ selectedBuilding: null, sidebarStep: 'closed', showCommunityLayer: false })
-  },
+  closeSidebar: () => set({ selectedBuilding: null, sidebarStep: 'closed', showCommunityLayer: false }),
   advanceTo: (step) => set({ sidebarStep: step }),
   setPreferences: (p) => set({ userPreferences: p }),
   toggleCommunityLayer: () => set((s) => ({ showCommunityLayer: !s.showCommunityLayer })),
