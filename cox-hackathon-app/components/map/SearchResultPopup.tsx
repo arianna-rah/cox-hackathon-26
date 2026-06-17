@@ -37,16 +37,54 @@ function isValidBuilding(place: SearchPlace): boolean {
   return false
 }
 
+/**
+ * Map Nominatim OSM category/type to a Building buildingType.
+ * This is a best-effort heuristic — Nominatim tags are inconsistent, so the
+ * default is 'office' (multi-story commercial) which is the safest fallback
+ * when we can't determine the actual use.
+ */
+function buildingTypeFromOSM(category: string, osmType: string): Building['buildingType'] {
+  const type = osmType.toLowerCase()
+  if (category === 'industrial' || type === 'warehouse' || type === 'storage' || type === 'factory') {
+    return 'warehouse'
+  }
+  if (
+    category === 'shop' ||
+    ['supermarket', 'convenience', 'mall', 'department_store', 'retail'].some((t) => type.includes(t))
+  ) {
+    return 'retail'
+  }
+  if (
+    ['restaurant', 'cafe', 'bar', 'pub', 'fast_food', 'food_court', 'food', 'bakery', 'ice_cream'].includes(type)
+  ) {
+    return 'retail'
+  }
+  if (
+    category === 'building' &&
+    ['apartments', 'residential', 'house', 'detached', 'terrace', 'semidetached'].some((t) =>
+      type.includes(t),
+    )
+  ) {
+    return 'residential'
+  }
+  // Default: 'office' covers offices, healthcare, civic, amenities, etc.
+  // This is intentionally conservative — it suppresses beekeeping for unknowns.
+  return 'office'
+}
+
 async function buildingFromPlace(
   name: string,
   address: string,
   lat: number,
   lng: number,
+  category = '',
+  osmType = '',
 ): Promise<Building> {
   let solar: {
     sun_exposure_hrs_per_day?: number
     roof_area_m2?: number
     max_annual_kwh?: number
+    roof_type?: string
   } | null = null
 
   try {
@@ -57,10 +95,30 @@ async function buildingFromPlace(
       const maxSunshine = sp.maxSunshineHoursPerYear ?? 0
       const configs: { yearlyEnergyDcKwh?: number }[] = sp.solarPanelConfigs ?? []
       const maxKwh = configs.reduce((m: number, c) => Math.max(m, c.yearlyEnergyDcKwh ?? 0), 0)
+
+      // Detect roof pitch from segment data to distinguish flat (commercial) from
+      // pitched (residential/gabled) buildings. Weighted by each segment's area.
+      let roof_type = 'Flat'
+      const segs: { pitchDegrees?: number; stats?: { areaMeters2?: number } }[] =
+        sp.roofSegmentStats ?? []
+      if (segs.length > 0) {
+        const totalArea = segs.reduce((s, seg) => s + (seg.stats?.areaMeters2 ?? 0), 0)
+        const weightedPitch =
+          totalArea > 0
+            ? segs.reduce(
+                (s, seg) =>
+                  s + (seg.pitchDegrees ?? 0) * ((seg.stats?.areaMeters2 ?? 0) / totalArea),
+                0,
+              )
+            : segs[0]?.pitchDegrees ?? 0
+        roof_type = weightedPitch >= 15 ? 'Pitched' : 'Flat'
+      }
+
       solar = {
         sun_exposure_hrs_per_day: maxSunshine ? Math.round((maxSunshine / 365) * 10) / 10 : undefined,
         roof_area_m2: sp.wholeRoofStats?.areaMeters2,
         max_annual_kwh: maxKwh || undefined,
+        roof_type,
       }
     }
   } catch {
@@ -74,9 +132,9 @@ async function buildingFromPlace(
     lat,
     lng,
     yearBuilt: 2000,
-    buildingType: 'office',
+    buildingType: buildingTypeFromOSM(category, osmType),
     roofAreaSqFt: solar?.roof_area_m2 ? Math.round(solar.roof_area_m2 * 10.764) : 10000,
-    roofType: 'Flat',
+    roofType: solar?.roof_type ?? 'Flat',
     roofMaterial: 'Unknown',
     maxLoadPSF: 30,
     sunExposureHrsPerDay: solar?.sun_exposure_hrs_per_day ?? 5.0,
@@ -101,7 +159,7 @@ export function SearchResultPopup() {
     if (!place || !valid) return
     setLoading(true)
     try {
-      const building = await buildingFromPlace(place.name, place.address, place.lat, place.lng)
+      const building = await buildingFromPlace(place.name, place.address, place.lat, place.lng, place.category, place.osmType)
       selectBuilding(building)
     } finally {
       setLoading(false)

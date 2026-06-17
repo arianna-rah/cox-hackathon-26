@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Trophy,
   Sparkles,
   ArrowLeft,
+  ArrowRight,
   Leaf,
   Zap,
   Droplets,
@@ -18,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
+import { useDashboardStore } from '@/stores/dashboardStore'
 import { buildFallbackDashboard, buildFallbackPlan } from '@/lib/dashboard'
 import { optionEnergyImpact, billToAnnualKwh } from '@/lib/scoring'
 import type { DashboardAnalysis, DashRoofPlan } from '@/types'
@@ -134,6 +137,8 @@ export function Results() {
   const selectedOptionId = useAnalysisStore((s) => s.selectedOptionId)
   const setSelectedOptionId = useAnalysisStore((s) => s.setSelectedOptionId)
   const advanceTo = useMapStore((s) => s.advanceTo)
+  const addPlan = useDashboardStore((s) => s.addPlan)
+  const router = useRouter()
 
   const selectedRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
@@ -363,6 +368,32 @@ export function Results() {
             })}
           </div>
         </Section>
+      )}
+
+      {/* ── Save to my dashboard ── */}
+      {result && !nothingDoable && (
+        <Button
+          onClick={() => {
+            const selectedOption =
+              (selectedOptionId
+                ? result.rankedOptions.find((o) => o.id === selectedOptionId)
+                : null) ??
+              result.rankedOptions.find((o) => o.id === plan.components[0]?.optionId) ??
+              result.rankedOptions[0]
+            if (!selectedOption) return
+            const planId = addPlan({
+              building: result.building,
+              selectedOption,
+              dashboard: dash,
+              solar,
+            })
+            router.push(`/plan/${planId}`)
+          }}
+          className="h-12 w-full gap-2 bg-greentop-green text-base font-semibold text-white hover:bg-greentop-green-dim"
+        >
+          Build My Plan
+          <ArrowRight className="h-4 w-4" />
+        </Button>
       )}
 
       <Button

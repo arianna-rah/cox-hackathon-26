@@ -44,6 +44,8 @@ export interface RoofOption {
   rebates: string[]
   warningFlags: string[]
   bestFor: string
+  /** Option requires a flat or low-slope roof (< 15° pitch). Not suitable for pitched residential roofs or inaccessible high-rise rooftops. */
+  requiresFlatRoof?: boolean
 }
 
 export interface ScoredOption extends RoofOption {
