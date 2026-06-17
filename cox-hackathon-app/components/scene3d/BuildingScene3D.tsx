@@ -405,7 +405,7 @@ export default function BuildingScene3D() {
 
   return (
     <div className="relative h-full w-full bg-greentop-bg">
-      <Canvas shadows={THREE.PCFShadowMap} camera={{ position: [9, 7.5, 9], fov: 38 }} dpr={[1, 2]}>
+      <Canvas shadows="percentage" camera={{ position: [9, 7.5, 9], fov: 38 }} dpr={[1, 2]}>
         <color attach="background" args={['#f6f1e3']} />
         <Suspense fallback={null}>
           <Scene dsmTwin={twin} twinLoading={loading} />

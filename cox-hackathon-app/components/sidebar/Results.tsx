@@ -381,10 +381,24 @@ export function Results() {
               result.rankedOptions.find((o) => o.id === plan.components[0]?.optionId) ??
               result.rankedOptions[0]
             if (!selectedOption) return
+            // Rebuild the dashboard with the user's chosen option ranked first
+            // so all saved content (metrics, copy, plan) reflects that choice,
+            // not whatever ranked #1 in the original analysis.
+            const reranked = [
+              selectedOption,
+              ...result.rankedOptions.filter((o) => o.id !== selectedOption.id),
+            ]
+            const planDashboard = buildFallbackDashboard(
+              result.building,
+              result.preferences,
+              reranked,
+              result.communityBonus,
+              solar,
+            )
             const planId = addPlan({
               building: result.building,
               selectedOption,
-              dashboard: dash,
+              dashboard: planDashboard,
               solar,
             })
             router.push(`/plan/${planId}`)
