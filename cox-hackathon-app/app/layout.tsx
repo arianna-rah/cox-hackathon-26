@@ -14,9 +14,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Canopy — AI Rooftop Transformation for Atlanta",
+  title: "GreenTop — AI Rooftop Transformation for Atlanta",
   description:
-    "Canopy gives any Atlanta building owner an instant, AI-generated plan for their roof — solar, green roof, cool roof, rainwater, or beekeeping — ranked by cost, feasibility, and impact.",
+    "GreenTop gives any Atlanta building owner an instant, AI-generated plan for their roof — solar, green roof, cool roof, rainwater, or beekeeping — ranked by cost, feasibility, and impact.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-canopy-bg text-canopy-text">
+      <body className="min-h-full flex flex-col bg-greentop-bg text-greentop-text">
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

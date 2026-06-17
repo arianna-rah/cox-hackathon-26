@@ -1,7 +1,7 @@
 // Real rooftop solar data from the Google Solar API.
 // The browser calls the same-origin /api/solar route (which adds the
 // server-side GOOGLE_SOLAR_KEY), then we reduce the raw response to the
-// handful of measured fields Canopy's scoring needs.
+// handful of measured fields GreenTop's scoring needs.
 
 const M2_TO_SQFT = 10.7639
 const DEG_LAT_METERS = 111_320 // meters per degree of latitude (≈ constant)

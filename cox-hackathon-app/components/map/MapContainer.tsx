@@ -41,7 +41,7 @@ function SearchMarker() {
 
   return (
     <Marker longitude={place.lng} latitude={place.lat} anchor="bottom">
-      <MapPin className="h-8 w-8 fill-canopy-green text-canopy-bg drop-shadow-lg" />
+      <MapPin className="h-8 w-8 fill-greentop-green text-white drop-shadow-lg" />
     </Marker>
   )
 }
@@ -260,7 +260,7 @@ export default function MapContainer() {
         onMouseUp={endDrag}
         style={{ width: '100%', height: '100%' }}
       >
-        <NavigationControl position="top-left" />
+        <NavigationControl position="bottom-right" />
         <SearchMarker />
         <BuildingLayer />
         <CommunityLayer />
@@ -268,7 +268,7 @@ export default function MapContainer() {
 
       {box && (
         <div
-          className="pointer-events-none absolute z-10 rounded-sm border-2 border-canopy-green bg-canopy-green/20"
+          className="pointer-events-none absolute z-10 rounded-sm border-2 border-greentop-green bg-greentop-green/20"
           style={{
             left: Math.min(box.sx, box.cx),
             top: Math.min(box.sy, box.cy),
@@ -279,8 +279,8 @@ export default function MapContainer() {
       )}
 
       {detecting && (
-        <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-canopy-border bg-canopy-surface/95 px-4 py-2 text-sm text-canopy-text shadow-lg backdrop-blur-md">
-          <Loader2 className="h-4 w-4 animate-spin text-canopy-green" />
+        <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-greentop-border bg-greentop-surface/95 px-4 py-2 text-sm text-greentop-text shadow-lg backdrop-blur-md">
+          <Loader2 className="h-4 w-4 animate-spin text-greentop-green" />
           Detecting rooftop…
         </div>
       )}

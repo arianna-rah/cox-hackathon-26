@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Ruler,
   Layers,
@@ -9,8 +10,7 @@ import {
   Droplets,
   ArrowRight,
   TriangleAlert,
-  Satellite,
-  Loader2,
+  Pencil,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,31 +26,94 @@ function hiddenCosts(b: Building, roofAreaSqFt: number) {
   return { cooling, maintenance, stormwater, total: cooling + maintenance + stormwater }
 }
 
-function Stat({
+/**
+ * A single editable building/roof figure. Tap the value to type a new one —
+ * Google Solar data can be stale, so the owner can correct it, and the edited
+ * number is what flows into the analysis.
+ */
+function EditableStat({
   icon: Icon,
   label,
   value,
+  suffix,
+  onCommit,
 }: {
   icon: typeof Ruler
   label: string
-  value: string
+  value: number
+  suffix: string
+  onCommit: (n: number) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(value))
+
+  function commit() {
+    const n = Number(draft.replace(/[^0-9.]/g, ''))
+    if (Number.isFinite(n) && n >= 0) onCommit(n)
+    else setDraft(String(value))
+    setEditing(false)
+  }
+
   return (
-    <div className="rounded-xl border border-canopy-border bg-canopy-bg p-3">
-      <div className="mb-1 flex items-center gap-1.5 text-canopy-muted">
+    <div className="rounded-xl border border-greentop-border bg-greentop-surface p-3">
+      <div className="mb-1 flex items-center justify-between text-greentop-muted">
+        <span className="flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5" />
+          <span className="text-[11px] uppercase tracking-wide">{label}</span>
+        </span>
+        {!editing && <Pencil className="h-3 w-3 opacity-50" />}
+      </div>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit()
+            if (e.key === 'Escape') {
+              setDraft(String(value))
+              setEditing(false)
+            }
+          }}
+          className="w-full rounded-md border border-greentop-green/50 bg-greentop-bg px-1.5 py-0.5 font-mono text-sm font-semibold text-greentop-text outline-none"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(String(value))
+            setEditing(true)
+          }}
+          className="block w-full text-left font-mono text-sm font-semibold text-greentop-text hover:text-greentop-green"
+        >
+          {value.toLocaleString()}
+          {suffix}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** A non-editable text stat (e.g. roof construction). */
+function TextStat({ icon: Icon, label, value }: { icon: typeof Ruler; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-greentop-border bg-greentop-surface p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-greentop-muted">
         <Icon className="h-3.5 w-3.5" />
         <span className="text-[11px] uppercase tracking-wide">{label}</span>
       </div>
-      <p className="font-mono text-sm font-semibold text-canopy-text">{value}</p>
+      <p className="font-mono text-sm font-semibold text-greentop-text">{value}</p>
     </div>
   )
 }
 
 export function BuildingInfo() {
   const b = useMapStore((s) => s.selectedBuilding)
+  const updateBuilding = useMapStore((s) => s.updateSelectedBuilding)
   const advanceTo = useMapStore((s) => s.advanceTo)
   const solar = useAnalysisStore((s) => s.solar)
-  const solarLoading = useAnalysisStore((s) => s.solarLoading)
+  const patchSolar = useAnalysisStore((s) => s.patchSolar)
   if (!b) return null
 
   const prewar = b.yearBuilt < 1980
@@ -64,81 +127,97 @@ export function BuildingInfo() {
     <div className="flex flex-col gap-5 p-5">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <Badge className="bg-canopy-green/15 text-canopy-green capitalize">
+          <Badge className="bg-greentop-green/15 text-greentop-green capitalize">
             {b.buildingType}
           </Badge>
-          <Badge
-            variant="outline"
-            className="border-canopy-border text-canopy-muted"
-          >
+          <Badge variant="outline" className="border-greentop-border text-greentop-muted">
             Built {b.yearBuilt}
           </Badge>
         </div>
-        <h3 className="text-lg font-semibold leading-tight text-canopy-text">
-          {b.name}
-        </h3>
-        <p className="text-sm text-canopy-muted">{b.address}</p>
+        <h3 className="text-lg font-semibold leading-tight text-greentop-text">{b.name}</h3>
       </div>
 
-      {/* Live data status */}
-      {solarLoading ? (
-        <div className="flex items-center gap-2 text-xs text-canopy-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Fetching live roof data from Google Solar…
-        </div>
-      ) : solar ? (
-        <div className="flex items-center gap-2 text-xs text-canopy-green">
-          <Satellite className="h-3.5 w-3.5" />
-          Live satellite roof data · Google Solar API
-        </div>
-      ) : null}
+      <p className="-mb-1 text-xs text-greentop-muted">Tap any value to edit if it looks out of date.</p>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <Stat icon={Ruler} label="Roof Area" value={`${roofAreaSqFt.toLocaleString()} ft²`} />
-        <Stat icon={Layers} label="Roof" value={`${b.roofType} · ${b.roofMaterial}`} />
-        <Stat icon={Weight} label="Max Load" value={`${b.maxLoadPSF} lbs/ft²`} />
-        <Stat icon={Sun} label="Sun Exposure" value={`${sunHrs} hrs/day`} />
-        <Stat icon={Thermometer} label="Heat Island" value={`+${b.heatIslandIntensityF}°F`} />
-        <Stat icon={Droplets} label="Stormwater" value={`$${b.annualStormwaterCreditDollars.toLocaleString()}/yr`} />
+        <EditableStat
+          icon={Ruler}
+          label="Roof Area"
+          value={roofAreaSqFt}
+          suffix=" ft²"
+          onCommit={(n) => {
+            updateBuilding({ roofAreaSqFt: n })
+            if (solar) patchSolar({ roofAreaSqFt: n })
+          }}
+        />
+        <TextStat icon={Layers} label="Roof" value={`${b.roofType} · ${b.roofMaterial}`} />
+        <EditableStat
+          icon={Weight}
+          label="Max Load"
+          value={b.maxLoadPSF}
+          suffix=" lbs/ft²"
+          onCommit={(n) => updateBuilding({ maxLoadPSF: n })}
+        />
+        <EditableStat
+          icon={Sun}
+          label="Sun Exposure"
+          value={sunHrs}
+          suffix=" hrs/day"
+          onCommit={(n) => {
+            updateBuilding({ sunExposureHrsPerDay: n })
+            if (solar) patchSolar({ sunExposureHrsPerDay: n })
+          }}
+        />
+        <EditableStat
+          icon={Thermometer}
+          label="Heat Island"
+          value={b.heatIslandIntensityF}
+          suffix=" °F"
+          onCommit={(n) => updateBuilding({ heatIslandIntensityF: n })}
+        />
+        <EditableStat
+          icon={Droplets}
+          label="Stormwater"
+          value={b.annualStormwaterCreditDollars}
+          suffix=" $/yr"
+          onCommit={(n) => updateBuilding({ annualStormwaterCreditDollars: n })}
+        />
       </div>
 
       {prewar && (
-        <div className="flex items-start gap-2 rounded-xl border border-canopy-amber/40 bg-canopy-amber/10 p-3 text-sm text-canopy-amber">
+        <div className="flex items-start gap-2 rounded-xl border border-greentop-amber/40 bg-greentop-amber/10 p-3 text-sm text-greentop-amber">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Pre-1980 construction — heavier rooftop systems may need a
-            structural review.
-          </span>
+          <span>Pre-1980 construction — heavier rooftop systems may need a structural review.</span>
         </div>
       )}
 
-      <div className="rounded-xl border border-canopy-red/30 bg-canopy-red/5 p-4">
-        <p className="mb-3 text-xs font-mono uppercase tracking-widest text-canopy-red">
+      <div className="rounded-xl border border-greentop-red/30 bg-greentop-red/5 p-4">
+        <p className="mb-3 text-xs font-mono uppercase tracking-widest text-greentop-red">
           What this roof costs you today
         </p>
         <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between text-canopy-muted">
+          <div className="flex justify-between text-greentop-muted">
             <span>Excess cooling load</span>
-            <span className="font-mono text-canopy-text">${costs.cooling.toLocaleString()}/yr</span>
+            <span className="font-mono text-greentop-text">${costs.cooling.toLocaleString()}/yr</span>
           </div>
-          <div className="flex justify-between text-canopy-muted">
+          <div className="flex justify-between text-greentop-muted">
             <span>Stormwater fees forgone</span>
-            <span className="font-mono text-canopy-text">${costs.stormwater.toLocaleString()}/yr</span>
+            <span className="font-mono text-greentop-text">${costs.stormwater.toLocaleString()}/yr</span>
           </div>
-          <div className="flex justify-between text-canopy-muted">
+          <div className="flex justify-between text-greentop-muted">
             <span>Roof maintenance overhead</span>
-            <span className="font-mono text-canopy-text">${costs.maintenance.toLocaleString()}/yr</span>
+            <span className="font-mono text-greentop-text">${costs.maintenance.toLocaleString()}/yr</span>
           </div>
-          <div className="mt-2 flex justify-between border-t border-canopy-border pt-2 font-semibold">
-            <span className="text-canopy-text">Total hidden cost</span>
-            <span className="font-mono text-canopy-red">${costs.total.toLocaleString()}/yr</span>
+          <div className="mt-2 flex justify-between border-t border-greentop-border pt-2 font-semibold">
+            <span className="text-greentop-text">Total hidden cost</span>
+            <span className="font-mono text-greentop-red">${costs.total.toLocaleString()}/yr</span>
           </div>
         </div>
       </div>
 
       <Button
         onClick={() => advanceTo('preferences')}
-        className="h-12 w-full gap-2 bg-canopy-green text-base font-semibold text-canopy-bg hover:bg-canopy-green-dim"
+        className="h-12 w-full gap-2 bg-greentop-green text-base font-semibold text-white hover:bg-greentop-green-dim"
       >
         Analyze My Roof
         <ArrowRight className="h-4 w-4" />

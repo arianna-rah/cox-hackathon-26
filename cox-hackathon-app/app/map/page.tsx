@@ -17,15 +17,18 @@ const BuildingScene3D = dynamic(() => import('@/components/scene3d/BuildingScene
 
 export default function MapPage() {
   const selectedBuilding = useMapStore((s) => s.selectedBuilding)
+  const sidebarStep = useMapStore((s) => s.sidebarStep)
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-canopy-bg">
+    <div className="relative h-screen w-screen overflow-hidden bg-greentop-bg">
       <div className="absolute inset-0 z-0">
         <AnimatePresence>
           {selectedBuilding ? (
             <motion.div
               key="scene3d"
-              className="absolute inset-0"
+              className={`absolute inset-y-0 left-0 transition-[right] duration-500 ease-out ${
+                sidebarStep === 'results' ? 'right-0 sm:right-[60vw]' : 'right-0'
+              }`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

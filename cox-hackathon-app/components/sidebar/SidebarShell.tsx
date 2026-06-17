@@ -20,13 +20,11 @@ const variants: Variants = {
 const STEP_TITLES: Record<string, string> = {
   info: 'Building Overview',
   preferences: 'Your Priorities',
-  analysis: 'Canopy Analysis',
+  analysis: 'GreenTop Analysis',
   results: 'Recommendations',
 }
 
-const STEP_SUBTITLES: Record<string, string> = {
-  preferences: 'Tell us what matters most for this roof.',
-}
+const STEP_SUBTITLES: Record<string, string> = {}
 
 export function SidebarShell() {
   const step = useMapStore((s) => s.sidebarStep)
@@ -63,27 +61,29 @@ export function SidebarShell() {
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="absolute right-0 top-0 z-20 flex h-screen w-full flex-col border-l border-canopy-border bg-canopy-surface shadow-2xl sm:w-[420px]"
+          className={`absolute right-0 top-0 z-20 flex h-screen w-full flex-col border-l border-greentop-border bg-greentop-surface shadow-2xl transition-[width] duration-500 ease-out ${
+            step === 'results' ? 'sm:w-[60vw]' : 'sm:w-[420px]'
+          }`}
         >
-          <header className="flex items-center justify-between border-b border-canopy-border px-5 py-4">
+          <header className="flex items-center justify-between border-b border-greentop-border px-5 py-4">
             <div className="flex items-center gap-2">
-              <Leaf className="h-5 w-5 text-canopy-green" />
+              <Leaf className="h-5 w-5 text-greentop-green" />
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-widest text-canopy-green">
-                  Canopy
+                <p className="text-[10px] font-mono uppercase tracking-widest text-greentop-green">
+                  GreenTop
                 </p>
-                <h2 className="text-sm font-semibold text-canopy-text">
+                <h2 className="text-sm font-semibold text-greentop-text">
                   {STEP_TITLES[step] ?? ''}
                 </h2>
                 {STEP_SUBTITLES[step] && (
-                  <p className="mt-0.5 text-xs text-canopy-muted">{STEP_SUBTITLES[step]}</p>
+                  <p className="mt-0.5 text-xs text-greentop-muted">{STEP_SUBTITLES[step]}</p>
                 )}
               </div>
             </div>
             <button
               onClick={close}
               aria-label="Close"
-              className="rounded-md p-1.5 text-canopy-muted transition-colors hover:bg-canopy-bg hover:text-canopy-text"
+              className="rounded-md p-1.5 text-greentop-muted transition-colors hover:bg-greentop-bg hover:text-greentop-text"
             >
               <X className="h-5 w-5" />
             </button>

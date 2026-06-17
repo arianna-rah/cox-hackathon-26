@@ -6,6 +6,7 @@ import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
 import { scoreAndRankOptions, calculateCommunityBonus, realSolarEconomics } from '@/lib/scoring'
 import { buildFallbackDashboard } from '@/lib/dashboard'
+import { fetchGeminiPlan } from '@/lib/gemini'
 import type {
   Building,
   UserPreferences,
@@ -87,9 +88,9 @@ function PhaseBar({ filled }: { filled: number }) {
   const segments = 12
   const full = Math.round((filled / 100) * segments)
   return (
-    <span className="font-mono text-canopy-green">
+    <span className="font-mono text-greentop-green">
       {'█'.repeat(full)}
-      <span className="text-canopy-border">{'░'.repeat(segments - full)}</span>
+      <span className="text-greentop-border">{'░'.repeat(segments - full)}</span>
     </span>
   )
 }
@@ -158,9 +159,18 @@ export function AgentAnalysis() {
 
       const ranked = backend?.rankedOptions?.length ? backend.rankedOptions : localRanked
       const community = backend?.communityBonus ?? localCommunity
-      const dashboard =
+      let dashboard =
         backend?.dashboardAnalysis ??
         buildFallbackDashboard(b, p, localRanked, localCommunity, solar)
+
+      // Frontend Gemini: the real recommended plan (best combo, roof %, per-widget
+      // implementation). On any failure we keep the deterministic plan already in
+      // `dashboard`, so the results page always has a coherent plan + widgets.
+      const geminiPlan = await Promise.race([
+        fetchGeminiPlan(b, solar, p, ranked),
+        new Promise<null>((r) => setTimeout(() => r(null), 12000)),
+      ])
+      if (geminiPlan) dashboard = { ...dashboard, plan: geminiPlan, source: 'gemini' }
 
       setResult({ building: b, preferences: p, rankedOptions: ranked, communityBonus: community })
       useAnalysisStore.getState().setDashboardAnalysis(dashboard)
@@ -237,14 +247,14 @@ export function AgentAnalysis() {
   return (
     <div className="flex flex-col gap-5 p-5">
       {/* Phase progress */}
-      <div className="space-y-2 rounded-xl border border-canopy-border bg-canopy-bg p-4 text-xs">
+      <div className="space-y-2 rounded-xl border border-greentop-border bg-greentop-bg p-4 text-xs">
         {PHASES.map((name, i) => {
           const idx = i + 1
           const filled = phase > idx ? 100 : phase === idx ? 60 : 0
           return (
             <div key={name} className="flex items-center justify-between gap-3">
               <span
-                className={`${phase >= idx ? 'text-canopy-text' : 'text-canopy-muted'}`}
+                className={`${phase >= idx ? 'text-greentop-text' : 'text-greentop-muted'}`}
               >
                 Phase {idx}: {name}
               </span>
@@ -263,17 +273,17 @@ export function AgentAnalysis() {
             animate={{ opacity: 1, y: 0 }}
             className={
               m.startsWith('✓')
-                ? 'text-canopy-green'
+                ? 'text-greentop-green'
                 : m.startsWith('⚠')
-                  ? 'text-canopy-amber'
-                  : 'text-canopy-text'
+                  ? 'text-greentop-amber'
+                  : 'text-greentop-text'
             }
           >
-            <span className="mr-1.5 text-canopy-green">›</span>
+            <span className="mr-1.5 text-greentop-green">›</span>
             {m}
           </motion.p>
         ))}
-        <span className="inline-block h-4 w-2 animate-pulse bg-canopy-green align-middle" />
+        <span className="inline-block h-4 w-2 animate-pulse bg-greentop-green align-middle" />
       </div>
     </div>
   )

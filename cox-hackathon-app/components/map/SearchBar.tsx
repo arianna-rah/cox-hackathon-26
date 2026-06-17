@@ -93,22 +93,22 @@ export function SearchBar() {
 
   return (
     <div ref={containerRef} className="w-[22rem] max-w-[calc(100vw-2rem)]">
-      <div className="relative flex items-center rounded-full border border-canopy-border bg-canopy-surface/90 shadow-lg backdrop-blur-md">
-        <Search className="ml-4 h-4 w-4 shrink-0 text-canopy-muted" />
+      <div className="relative flex items-center rounded-full border border-greentop-border bg-greentop-surface/90 shadow-lg backdrop-blur-md">
+        <Search className="ml-4 h-4 w-4 shrink-0 text-greentop-muted" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder="Search places in Atlanta"
-          className="w-full bg-transparent px-3 py-3 text-sm text-canopy-text placeholder:text-canopy-muted focus:outline-none"
+          className="w-full bg-transparent px-3 py-3 text-sm text-greentop-text placeholder:text-greentop-muted focus:outline-none"
         />
-        {loading && <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-canopy-muted" />}
+        {loading && <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-greentop-muted" />}
         {query && !loading && (
           <button
             onClick={clear}
             aria-label="Clear search"
-            className="mr-3 rounded-full p-1 text-canopy-muted hover:bg-canopy-bg/60 hover:text-canopy-text"
+            className="mr-3 rounded-full p-1 text-greentop-muted hover:bg-greentop-bg/60 hover:text-greentop-text"
           >
             <X className="h-4 w-4" />
           </button>
@@ -116,9 +116,9 @@ export function SearchBar() {
       </div>
 
       {open && (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-canopy-border bg-canopy-surface/95 shadow-xl backdrop-blur-md">
+        <div className="mt-2 overflow-hidden rounded-2xl border border-greentop-border bg-greentop-surface/95 shadow-xl backdrop-blur-md">
           {results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-canopy-muted">
+            <p className="px-4 py-3 text-sm text-greentop-muted">
               {loading ? 'Searching…' : 'No places found in Atlanta'}
             </p>
           ) : (
@@ -130,15 +130,15 @@ export function SearchBar() {
                     onClick={() => choose(r)}
                     className={cn(
                       'flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors',
-                      i === activeIdx ? 'bg-canopy-green/10' : 'hover:bg-canopy-bg/60',
+                      i === activeIdx ? 'bg-greentop-green/10' : 'hover:bg-greentop-bg/60',
                     )}
                   >
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-canopy-green" />
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-greentop-green" />
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-canopy-text">
+                      <span className="block truncate text-sm font-medium text-greentop-text">
                         {r.name}
                       </span>
-                      <span className="block truncate text-xs text-canopy-muted">
+                      <span className="block truncate text-xs text-greentop-muted">
                         {r.address}
                       </span>
                     </span>

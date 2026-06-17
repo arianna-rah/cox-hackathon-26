@@ -13,9 +13,93 @@ import type {
   DashboardAnalysis,
   DashComparisonRow,
   DashRisk,
+  DashRoofPlan,
+  DashPlanComponent,
 } from '@/types'
 import type { SolarData } from '@/lib/solar'
 import { ATLANTA } from '@/lib/constants'
+import { coveragePlan } from '@/lib/coverage'
+
+const clampPct = (n: number) => Math.min(100, Math.max(0, Math.round(n)))
+
+/** Short benefit line for a plan component (savings, revenue, or non-$ benefit). */
+function benefitLine(o: ScoredOption): string {
+  if (o.annualRevenueFixed && o.annualRevenueFixed > 0)
+    return `~$${Math.round(o.annualRevenueFixed).toLocaleString()}/yr revenue`
+  if (o.id === 'beekeeping') return 'Pollination + community engagement'
+  if (o.id.includes('green')) return 'Cooling, stormwater & biodiversity'
+  if (o.annualNetDollars > 0) return `~$${Math.round(o.annualNetDollars).toLocaleString()}/yr savings`
+  return o.bestFor
+}
+
+function planComponent(o: ScoredOption, solar: SolarData | null): DashPlanComponent {
+  const cov = coveragePlan(o.id, solar)
+  return {
+    optionId: o.id,
+    name: o.name,
+    coveragePct: clampPct(cov.coveredPct),
+    upfrontCost: Math.round(o.uptrontCost),
+    annualBenefit: benefitLine(o),
+    implementation: cov.note,
+  }
+}
+
+/**
+ * Deterministic recommended plan — the single best strategy, optionally pairing
+ * the top option with a complementary low-footprint one (e.g. solar + bees).
+ * Used when Gemini is unavailable so the dashboard + 3D widgets always have a
+ * coherent plan to show.
+ */
+export function buildFallbackPlan(
+  building: Building,
+  ranked: ScoredOption[],
+  solar: SolarData | null,
+): DashRoofPlan {
+  const feasible = ranked.filter((o) => o.feasible)
+  const primary = feasible[0] ?? ranked[0]
+  const components: DashPlanComponent[] = [planComponent(primary, solar)]
+
+  // A complementary piece that genuinely shares the roof without conflicting:
+  // bees take a tiny corner; rainwater uses the roof as catchment, not surface.
+  const complement = feasible.find(
+    (o) =>
+      o.id !== primary.id &&
+      ((primary.id === 'solar' && (o.id === 'beekeeping' || o.id === 'rainwater')) ||
+        (primary.id.includes('green') && o.id === 'beekeeping')),
+  )
+  if (complement) components.push(planComponent(complement, solar))
+
+  // Surface-coverage components compete for the same area; catchment/footprint
+  // ones (rainwater, bees) don't, so they don't eat into the usable surface.
+  const surfaceComps = components.filter(
+    (c) => c.optionId !== 'rainwater' && c.optionId !== 'beekeeping',
+  )
+  const surfacePct = surfaceComps.reduce((sum, c) => sum + c.coveragePct, 0)
+  const unusablePct = clampPct(Math.max(building.yearBuilt < 1980 ? 15 : 8, 100 - surfacePct))
+
+  // Keep the numbers honest: surface coverage can't exceed the usable area, so
+  // the allocation (components + unusable) adds up to 100%.
+  const usablePct = 100 - unusablePct
+  if (surfacePct > usablePct && surfacePct > 0) {
+    for (const c of surfaceComps) c.coveragePct = clampPct((c.coveragePct / surfacePct) * usablePct)
+  }
+
+  const reasons = ['rooftop HVAC, vents and equipment', 'roof setbacks, walkways and drainage']
+  if (building.yearBuilt < 1980) reasons.push('structural load limits on this older roof')
+
+  const names = components.map((c) => c.name)
+  const strategyName =
+    names.length > 1 ? `${names[0]} + ${names.slice(1).join(' + ')}` : names[0]
+
+  return {
+    strategyName,
+    summary: `Convert ${building.name}'s roof with ${strategyName.toLowerCase()} — using the parts of the roof that are structurally and solar-suitable, while leaving equipment and access zones clear.`,
+    components,
+    changeablePct: clampPct(100 - unusablePct),
+    unusablePct,
+    unusableReason: `Reserved for ${reasons.join(', ')}.`,
+  }
+}
 
 const CARS_CO2_TONS_PER_YEAR = 4.6 // EPA: avg passenger vehicle, metric tons CO₂/yr
 
@@ -176,6 +260,7 @@ export function buildFallbackDashboard(
       : 'Environmental impact is modest for this option on this roof.'
 
   return {
+    plan: buildFallbackPlan(building, ranked, solar),
     recommendedOption: {
       name: top.name,
       category: meta(top.id).category,
@@ -257,7 +342,7 @@ export function buildFallbackDashboard(
       ...(includeCommunity
         ? [{ step: 'Invite nearby buildings', description: 'Recruit neighbors to qualify for Green Block grant and bulk pricing.' }]
         : []),
-      { step: 'Share the Canopy report', description: 'Send this analysis to stakeholders or decision-makers.' },
+      { step: 'Share the GreenTop report', description: 'Send this analysis to stakeholders or decision-makers.' },
     ],
     advisorSummary:
       `For ${building.name}, ${top.name} is the strongest rooftop move. ` +

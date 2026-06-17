@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import type { BuildingTwin } from '@/lib/twin'
 
-// Solid canopy-themed green/grey instead of the raw aerial photo colours —
+// Solid greentop-themed green/grey instead of the raw aerial photo colours —
 // keeps the twin's true measured shape while matching the site's palette.
 // Lighting (via face normals + meshStandardMaterial) still shades the
 // faces, so the form reads clearly without a multicoloured photo gradient.

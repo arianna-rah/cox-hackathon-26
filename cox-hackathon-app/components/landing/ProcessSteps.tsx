@@ -24,7 +24,7 @@ const STEPS = [
 export function ProcessSteps() {
   return (
     <section className="mx-auto max-w-5xl px-6 py-20">
-      <h2 className="mb-12 text-center text-2xl font-semibold text-canopy-text sm:text-3xl">
+      <h2 className="mb-12 text-center text-2xl font-semibold text-greentop-text sm:text-3xl">
         Three steps to a smarter rooftop
       </h2>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
@@ -35,20 +35,20 @@ export function ProcessSteps() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: i * 0.12 }}
-            className="rounded-2xl border border-canopy-border bg-canopy-surface/50 p-6"
+            className="rounded-2xl border border-greentop-border bg-greentop-surface/50 p-6"
           >
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-canopy-green/15">
-              <s.icon className="h-5 w-5 text-canopy-green" />
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-greentop-green/15">
+              <s.icon className="h-5 w-5 text-greentop-green" />
             </div>
             <div className="mb-1 flex items-center gap-2">
-              <span className="font-mono text-sm text-canopy-green">
+              <span className="font-mono text-sm text-greentop-green">
                 0{i + 1}
               </span>
-              <h3 className="text-lg font-semibold text-canopy-text">
+              <h3 className="text-lg font-semibold text-greentop-text">
                 {s.title}
               </h3>
             </div>
-            <p className="text-sm leading-relaxed text-canopy-muted">{s.desc}</p>
+            <p className="text-sm leading-relaxed text-greentop-muted">{s.desc}</p>
           </motion.div>
         ))}
       </div>

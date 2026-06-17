@@ -24,6 +24,7 @@ interface AnalysisState {
   appendMessage: (m: string) => void
   startAnalysis: () => void
   setSolar: (s: SolarData | null) => void
+  patchSolar: (patch: Partial<SolarData>) => void
   setSolarLoading: (b: boolean) => void
   setSelectedOptionId: (id: string | null) => void
   reset: () => void
@@ -58,6 +59,7 @@ export const useAnalysisStore = create<AnalysisState>((set) => ({
       selectedOptionId: null,
     }),
   setSolar: (s) => set({ solar: s }),
+  patchSolar: (patch) => set((s) => (s.solar ? { solar: { ...s.solar, ...patch } } : {})),
   setSolarLoading: (b) => set({ solarLoading: b }),
   setSelectedOptionId: (id) => set({ selectedOptionId: id }),
   reset: () =>

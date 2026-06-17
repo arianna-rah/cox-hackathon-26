@@ -182,7 +182,32 @@ export interface DashNextStep {
   description: string
 }
 
+/** One element of the recommended roof plan — becomes a clickable 3D widget. */
+export interface DashPlanComponent {
+  optionId: string          // matches ScoredOption.id (drives the 3D widget icon)
+  name: string              // e.g. "Rooftop Solar"
+  coveragePct: number       // share of the roof this uses (0–100)
+  upfrontCost: number | null
+  annualBenefit: string     // short benefit line ($ saved/yr, or social/biodiversity)
+  implementation: string    // how it's implemented on this roof (a few sentences)
+}
+
+/**
+ * The single recommended strategy for the roof — may combine several options
+ * (e.g. solar + a pollinator garden). `components` are the only things that
+ * appear as widgets on the 3D model.
+ */
+export interface DashRoofPlan {
+  strategyName: string      // e.g. "Solar + Pollinator Garden"
+  summary: string           // short project description
+  components: DashPlanComponent[]
+  changeablePct: number     // % of the roof that can be changed/used
+  unusablePct: number       // % that stays unusable
+  unusableReason: string    // why (setbacks, HVAC, shading, structural, …)
+}
+
 export interface DashboardAnalysis {
+  plan?: DashRoofPlan | null
   recommendedOption: DashRecommendedOption
   keyMetrics: DashKeyMetrics
   roofSummary: DashRoofSummary

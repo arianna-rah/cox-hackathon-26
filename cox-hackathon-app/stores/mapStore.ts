@@ -21,6 +21,7 @@ interface MapState {
   searchPlace: SearchPlace | null
   mapMode: MapMode
   selectBuilding: (b: Building) => void
+  updateSelectedBuilding: (patch: Partial<Building>) => void
   closeSidebar: () => void
   advanceTo: (step: SidebarStep) => void
   setPreferences: (p: UserPreferences) => void
@@ -37,6 +38,8 @@ export const useMapStore = create<MapState>((set) => ({
   searchPlace: null,
   mapMode: 'pan',
   selectBuilding: (b) => set({ selectedBuilding: b, sidebarStep: 'info' }),
+  updateSelectedBuilding: (patch) =>
+    set((s) => (s.selectedBuilding ? { selectedBuilding: { ...s.selectedBuilding, ...patch } } : {})),
   closeSidebar: () => set({ selectedBuilding: null, sidebarStep: 'closed', showCommunityLayer: false }),
   advanceTo: (step) => set({ sidebarStep: step }),
   setPreferences: (p) => set({ userPreferences: p }),

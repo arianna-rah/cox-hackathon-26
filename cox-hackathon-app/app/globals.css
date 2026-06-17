@@ -5,18 +5,19 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ───────────────────────────────────────────────
-   Canopy palette — generates bg-canopy-*, text-canopy-*, border-canopy-*
+   GreenTop palette — light cream / brown with green accents.
+   Generates bg-greentop-*, text-greentop-*, border-greentop-*
    ─────────────────────────────────────────────── */
 @theme {
-  --color-canopy-bg:        #0a1a0f;
-  --color-canopy-surface:   #111f14;
-  --color-canopy-border:    #1e3a22;
-  --color-canopy-green:     #22c55e;
-  --color-canopy-green-dim: #16a34a;
-  --color-canopy-amber:     #f59e0b;
-  --color-canopy-red:       #ef4444;
-  --color-canopy-text:      #f0fdf4;
-  --color-canopy-muted:     #93a99b;
+  --color-greentop-bg:        #f6f1e3;  /* warm cream page background */
+  --color-greentop-surface:   #fffdf7;  /* near-white warm card surface */
+  --color-greentop-border:    #e7dcc4;  /* soft tan border */
+  --color-greentop-green:     #16a34a;  /* button + accent green (white text on top) */
+  --color-greentop-green-dim: #15803d;  /* deeper green for hovers */
+  --color-greentop-amber:     #c2810b;  /* warm amber, readable on cream */
+  --color-greentop-red:       #c2410c;  /* warm terracotta red */
+  --color-greentop-text:      #3a3325;  /* warm dark brown text */
+  --color-greentop-muted:     #8a7c63;  /* muted taupe */
 }
 
 /* shadcn semantic tokens → mapped to runtime CSS vars below */
@@ -64,75 +65,75 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Canopy is dark by default — semantic tokens use the Canopy palette */
+/* GreenTop is light by default — semantic tokens use the cream/brown palette */
 :root {
-  --background: #0a1a0f;
-  --foreground: #f0fdf4;
-  --card: #111f14;
-  --card-foreground: #f0fdf4;
-  --popover: #111f14;
-  --popover-foreground: #f0fdf4;
-  --primary: #22c55e;
-  --primary-foreground: #06140b;
-  --secondary: #1e3a22;
-  --secondary-foreground: #f0fdf4;
-  --muted: #16271b;
-  --muted-foreground: #93a99b;
-  --accent: #16a34a;
-  --accent-foreground: #f0fdf4;
-  --destructive: #ef4444;
-  --border: #1e3a22;
-  --input: #1e3a22;
-  --ring: #22c55e;
-  --chart-1: #22c55e;
-  --chart-2: #16a34a;
-  --chart-3: #f59e0b;
+  --background: #f6f1e3;
+  --foreground: #3a3325;
+  --card: #fffdf7;
+  --card-foreground: #3a3325;
+  --popover: #fffdf7;
+  --popover-foreground: #3a3325;
+  --primary: #16a34a;
+  --primary-foreground: #ffffff;
+  --secondary: #efe7d3;
+  --secondary-foreground: #3a3325;
+  --muted: #efe7d3;
+  --muted-foreground: #8a7c63;
+  --accent: #15803d;
+  --accent-foreground: #ffffff;
+  --destructive: #c2410c;
+  --border: #e7dcc4;
+  --input: #e7dcc4;
+  --ring: #16a34a;
+  --chart-1: #16a34a;
+  --chart-2: #15803d;
+  --chart-3: #c2810b;
   --chart-4: #4ade80;
-  --chart-5: #86efac;
+  --chart-5: #a3b18a;
   --radius: 0.625rem;
-  --sidebar: #111f14;
-  --sidebar-foreground: #f0fdf4;
-  --sidebar-primary: #22c55e;
-  --sidebar-primary-foreground: #06140b;
-  --sidebar-accent: #1e3a22;
-  --sidebar-accent-foreground: #f0fdf4;
-  --sidebar-border: #1e3a22;
-  --sidebar-ring: #22c55e;
+  --sidebar: #fffdf7;
+  --sidebar-foreground: #3a3325;
+  --sidebar-primary: #16a34a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efe7d3;
+  --sidebar-accent-foreground: #3a3325;
+  --sidebar-border: #e7dcc4;
+  --sidebar-ring: #16a34a;
 }
 
-/* keep .dark identical so the `dark:` variant never inverts the theme */
+/* keep .dark identical so the `dark:` variant never inverts the light theme */
 .dark {
-  --background: #0a1a0f;
-  --foreground: #f0fdf4;
-  --card: #111f14;
-  --card-foreground: #f0fdf4;
-  --popover: #111f14;
-  --popover-foreground: #f0fdf4;
-  --primary: #22c55e;
-  --primary-foreground: #06140b;
-  --secondary: #1e3a22;
-  --secondary-foreground: #f0fdf4;
-  --muted: #16271b;
-  --muted-foreground: #93a99b;
-  --accent: #16a34a;
-  --accent-foreground: #f0fdf4;
-  --destructive: #ef4444;
-  --border: #1e3a22;
-  --input: #1e3a22;
-  --ring: #22c55e;
-  --chart-1: #22c55e;
-  --chart-2: #16a34a;
-  --chart-3: #f59e0b;
+  --background: #f6f1e3;
+  --foreground: #3a3325;
+  --card: #fffdf7;
+  --card-foreground: #3a3325;
+  --popover: #fffdf7;
+  --popover-foreground: #3a3325;
+  --primary: #16a34a;
+  --primary-foreground: #ffffff;
+  --secondary: #efe7d3;
+  --secondary-foreground: #3a3325;
+  --muted: #efe7d3;
+  --muted-foreground: #8a7c63;
+  --accent: #15803d;
+  --accent-foreground: #ffffff;
+  --destructive: #c2410c;
+  --border: #e7dcc4;
+  --input: #e7dcc4;
+  --ring: #16a34a;
+  --chart-1: #16a34a;
+  --chart-2: #15803d;
+  --chart-3: #c2810b;
   --chart-4: #4ade80;
-  --chart-5: #86efac;
-  --sidebar: #111f14;
-  --sidebar-foreground: #f0fdf4;
-  --sidebar-primary: #22c55e;
-  --sidebar-primary-foreground: #06140b;
-  --sidebar-accent: #1e3a22;
-  --sidebar-accent-foreground: #f0fdf4;
-  --sidebar-border: #1e3a22;
-  --sidebar-ring: #22c55e;
+  --chart-5: #a3b18a;
+  --sidebar: #fffdf7;
+  --sidebar-foreground: #3a3325;
+  --sidebar-primary: #16a34a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efe7d3;
+  --sidebar-accent-foreground: #3a3325;
+  --sidebar-border: #e7dcc4;
+  --sidebar-ring: #16a34a;
 }
 
 @layer base {
@@ -141,8 +142,8 @@
   }
   html,
   body {
-    background-color: var(--color-canopy-bg);
-    color: var(--color-canopy-text);
+    background-color: var(--color-greentop-bg);
+    color: var(--color-greentop-text);
   }
   html {
     @apply font-sans;

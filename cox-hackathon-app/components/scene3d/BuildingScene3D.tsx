@@ -4,13 +4,12 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, Html, Grid, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
-import { Ruler, Sun, Thermometer, Droplets, Leaf, TreePine, Zap, Flower2, Loader2, Trophy, Satellite } from 'lucide-react'
+import { Sun, Droplets, Leaf, TreePine, Zap, Flower2, Loader2 } from 'lucide-react'
 import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
 import { fetchBuildingTwin, type BuildingTwin } from '@/lib/twin'
 import { BuildingTwinMesh } from './BuildingTwinMesh'
 import type { RoofPlane, SolarData } from '@/lib/solar'
-import type { ScoredOption } from '@/types'
 
 /** A roof plane carried through the scene in local meters (scaled at render). */
 type ScenePlane = RoofPlane
@@ -50,8 +49,8 @@ const COLORS = {
   facadeDark: '#1f2937',
   roofMembrane: '#2b2f33',
   parapet: '#11151a',
-  grid: '#1e3a22',
-  // Solid canopy-themed green/grey used for measured roof planes — shaded by
+  grid: '#d8cdb4',
+  // Solid greentop-themed green/grey used for measured roof planes — shaded by
   // the scene's lighting instead of colour-coded by sun exposure.
   roofAccent: '#3f5a4a',
 }
@@ -71,20 +70,6 @@ function footprintFor(roofAreaSqFt: number, buildingType: string) {
   const width = aspect * depth
   const clamp = (n: number) => Math.min(Math.max(n, 2.5), 6.5)
   return { width: clamp(width), depth: clamp(depth) }
-}
-
-/** Deterministic-but-scattered offsets within the roof footprint, keyed by a string seed. */
-function scatterFor(seed: string, count: number, w: number, d: number) {
-  let s = 0
-  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0
-  const rand = () => {
-    s = (s * 1664525 + 1013904223) >>> 0
-    return s / 4294967296
-  }
-  return Array.from({ length: count }, () => ({
-    x: (rand() - 0.5) * w * 0.6,
-    z: (rand() - 0.5) * d * 0.6,
-  }))
 }
 
 const FLOOR_HEIGHT = 0.42
@@ -260,7 +245,7 @@ function RoofFeaturePin({
   isTop,
   position,
 }: {
-  option: ScoredOption
+  option: { id: string; name: string }
   isTop: boolean
   position: [number, number, number]
 }) {
@@ -283,9 +268,9 @@ function RoofFeaturePin({
         <span
           className={`flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-lg ${
             isSelected
-              ? 'border-white ring-2 ring-canopy-green ring-offset-1 ring-offset-black/40'
+              ? 'border-white ring-2 ring-greentop-green ring-offset-1 ring-offset-black/40'
               : isTop
-                ? 'border-canopy-green'
+                ? 'border-greentop-green'
                 : 'border-white/80'
           }`}
           style={{ backgroundColor: meta.color }}
@@ -294,7 +279,7 @@ function RoofFeaturePin({
         </span>
         <span
           className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium text-white shadow ${
-            isSelected ? 'bg-canopy-green/90 text-black' : 'bg-black/75'
+            isSelected ? 'bg-greentop-green/90 text-black' : 'bg-black/75'
           }`}
         >
           {isTop ? `★ ${option.name}` : option.name}
@@ -307,7 +292,7 @@ function RoofFeaturePin({
 function Scene({ dsmTwin, twinLoading }: { dsmTwin: BuildingTwin | null; twinLoading: boolean }) {
   const building = useMapStore((s) => s.selectedBuilding)
   const solar = useAnalysisStore((s) => s.solar)
-  const result = useAnalysisStore((s) => s.result)
+  const dashboardAnalysis = useAnalysisStore((s) => s.dashboardAnalysis)
   if (!building) return null
 
   const roofAreaSqFt = solar?.roofAreaSqFt ?? building.roofAreaSqFt
@@ -324,7 +309,14 @@ function Scene({ dsmTwin, twinLoading }: { dsmTwin: BuildingTwin | null; twinLoa
   const dsmHeight = dsmTwin ? dsmTwin.maxHeightM * dsmScale : 0
 
   const topY = dsmTwin ? dsmHeight : geo.bodyHeight
-  const featureOptions = result ? result.rankedOptions.slice(0, 4) : []
+
+  // Widgets = ONLY the recommended plan's components, and only once the analysis
+  // has produced them. Before results there is no plan, so the roof stays clean.
+  const planComponents = dashboardAnalysis?.plan?.components ?? []
+  const featureOptions = useMemo(
+    () => planComponents.map((c) => ({ id: c.optionId, name: c.name })),
+    [planComponents],
+  )
 
   // Frame the camera to the building's real size: a one-storey warehouse and a
   // 40-storey tower need very different distances. Pull back to fit the larger
@@ -339,28 +331,20 @@ function Scene({ dsmTwin, twinLoading }: { dsmTwin: BuildingTwin | null; twinLoa
     camera.updateProjectionMatrix()
   }, [camera, topY])
 
-  // Anchor each feature pin to a real roof plane (largest first) when we have
-  // measured geometry; otherwise scatter them across the footprint.
+  // Cluster the pins at the roof-top centre so they ALWAYS sit on the building
+  // — never floating off to the side, for any building shape. A small radius
+  // keeps them within the central footprint of towers and wide roofs alike.
   const anchors = useMemo<[number, number, number][]>(() => {
-    const n = Math.max(featureOptions.length, 1)
-    const planes = solar?.roofPlanes ?? []
-    if (planes.length) {
-      const scale = dsmTwin ? dsmScale : geo.scale
-      const baseY = dsmTwin ? dsmHeight : geo.bodyHeight
-      const ranked = [...planes].sort((a, b) => b.areaM2 - a.areaM2)
-      return Array.from({ length: n }, (_, i) => {
-        const p = ranked[i % ranked.length]
-        const y = dsmTwin ? baseY + 0.5 : baseY + p.relHeight * scale + 0.5
-        return [p.cx * scale, y, p.cz * scale] as [number, number, number]
-      })
-    }
-    if (dsmTwin) {
-      return Array.from({ length: n }, () => [0, dsmHeight + 0.5, 0] as [number, number, number])
-    }
-    return scatterFor(building.id, n, geo.width, geo.depth).map(
-      (pt) => [pt.x, geo.bodyHeight + 0.45, pt.z] as [number, number, number],
-    )
-  }, [dsmTwin, dsmScale, dsmHeight, geo, solar, building.id, featureOptions.length])
+    const n = featureOptions.length
+    if (n === 0) return []
+    const footprint = dsmTwin ? TWIN_TILE_UNITS : Math.min(geo.width, geo.depth)
+    const radius = n === 1 ? 0 : footprint * 0.16
+    const y = topY + Math.max(0.4, topY * 0.04)
+    return featureOptions.map((_, i) => {
+      const a = (i / n) * Math.PI * 2
+      return [Math.cos(a) * radius, y, Math.sin(a) * radius] as [number, number, number]
+    })
+  }, [featureOptions, dsmTwin, geo.width, geo.depth, topY])
 
   return (
     <>
@@ -414,68 +398,15 @@ function Scene({ dsmTwin, twinLoading }: { dsmTwin: BuildingTwin | null; twinLoa
   )
 }
 
-function StatChip({
-  icon: Icon,
-  color,
-  label,
-  value,
-}: {
-  icon: typeof Ruler
-  color: string
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex min-w-[100px] flex-col gap-1 rounded-lg px-3 py-2">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-canopy-muted">
-        <Icon className="h-3 w-3" style={{ color }} />
-        {label}
-      </div>
-      <p className="font-mono text-sm font-semibold text-canopy-text">{value}</p>
-    </div>
-  )
-}
-
-function Legend() {
-  const building = useMapStore((s) => s.selectedBuilding)
-  const solar = useAnalysisStore((s) => s.solar)
-  const result = useAnalysisStore((s) => s.result)
-  if (!building) return null
-
-  const roofAreaSqFt = solar?.roofAreaSqFt ?? building.roofAreaSqFt
-  const sunHrs = solar?.sunExposureHrsPerDay ?? building.sunExposureHrsPerDay
-
-  return (
-    <div className="absolute bottom-4 left-4 z-10 flex gap-1 rounded-xl border border-canopy-border bg-canopy-surface/95 p-2 shadow-2xl backdrop-blur">
-      <StatChip icon={Ruler} color="#f59e0b" label="Roof Area" value={`${roofAreaSqFt.toLocaleString()} ft²`} />
-      <StatChip icon={Sun} color="#38bdf8" label="Sun" value={`${sunHrs} hrs/day`} />
-      <StatChip icon={Thermometer} color="#ef4444" label="Heat Island" value={`+${building.heatIslandIntensityF}°F`} />
-      {result ? (
-        <StatChip icon={Trophy} color="#22c55e" label="Top Pick" value={result.rankedOptions[0].name} />
-      ) : (
-        <StatChip icon={Droplets} color="#a78bfa" label="Stormwater" value={`$${building.annualStormwaterCreditDollars.toLocaleString()}/yr`} />
-      )}
-    </div>
-  )
-}
-
 export default function BuildingScene3D() {
   const building = useMapStore((s) => s.selectedBuilding)
-  const solar = useAnalysisStore((s) => s.solar)
   const { twin, loading } = useBuildingTwin(building?.lat ?? 0, building?.lng ?? 0)
   if (!building) return null
 
-  const hasRealRoof = (solar?.roofPlanes?.length ?? 0) > 0
-  const twinLabel = twin
-    ? `${building.name} · digital twin · reconstructed from aerial imagery`
-    : hasRealRoof
-      ? `${building.name} · digital twin · ${solar!.roofPlanes.length} measured roof planes`
-      : `${building.name} · digital twin`
-
   return (
-    <div className="relative h-full w-full bg-canopy-bg">
+    <div className="relative h-full w-full bg-greentop-bg">
       <Canvas shadows camera={{ position: [9, 7.5, 9], fov: 38 }} dpr={[1, 2]}>
-        <color attach="background" args={['#0a1a0f']} />
+        <color attach="background" args={['#f6f1e3']} />
         <Suspense fallback={null}>
           <Scene dsmTwin={twin} twinLoading={loading} />
           <Environment preset="city" />
@@ -484,18 +415,12 @@ export default function BuildingScene3D() {
 
       {loading && (
         <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex -translate-y-1/2 justify-center">
-          <div className="flex items-center gap-2 rounded-full border border-canopy-border bg-canopy-surface/95 px-4 py-2 text-sm text-canopy-text shadow-lg backdrop-blur">
-            <Loader2 className="h-4 w-4 animate-spin text-canopy-green" />
+          <div className="flex items-center gap-2 rounded-full border border-greentop-border bg-greentop-surface/95 px-4 py-2 text-sm text-greentop-text shadow-lg backdrop-blur">
+            <Loader2 className="h-4 w-4 animate-spin text-greentop-green" />
             Reconstructing 3D from aerial imagery…
           </div>
         </div>
       )}
-
-      <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[300px] truncate rounded-lg border border-canopy-border bg-canopy-surface/90 px-3 py-2 text-xs text-canopy-muted backdrop-blur">
-        {(twin || hasRealRoof) && <Satellite className="mr-1.5 inline h-3 w-3 text-canopy-green" />}
-        {twinLabel}
-      </div>
-      <Legend />
     </div>
   )
 }

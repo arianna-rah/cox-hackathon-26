@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, MapPin, Zap, CheckCircle2, XCircle } from 'lucide-react'
+import { Loader2, MapPin, ArrowRight, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMapStore, type SearchPlace } from '@/stores/mapStore'
 import { Button } from '@/components/ui/button'
@@ -119,46 +119,32 @@ export function SearchResultPopup() {
           transition={{ duration: 0.22, ease: 'easeOut' }}
           className="absolute bottom-6 right-6 z-20 w-72"
         >
-          <Card className="gap-0 border-canopy-border bg-canopy-surface/95 p-4 shadow-2xl backdrop-blur-md">
+          <Card className="gap-0 border-greentop-border bg-greentop-surface/95 p-4 shadow-2xl backdrop-blur-md">
             <div className="mb-3 flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-canopy-green" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-canopy-text">{place.name}</p>
-                <p className="mt-0.5 truncate text-xs text-canopy-muted">{place.address}</p>
-              </div>
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-greentop-green" />
+              <p className="truncate text-sm font-semibold text-greentop-text">{place.name}</p>
             </div>
 
-            <div className="mb-3 rounded-lg bg-canopy-bg/60 px-3 py-2 font-mono text-xs text-canopy-muted">
-              <span className="text-canopy-green">lat</span>{' '}
+            <div className="mb-3 rounded-lg bg-greentop-bg/60 px-3 py-2 font-mono text-xs text-greentop-muted">
+              <span className="text-greentop-green">lat</span>{' '}
               {place.lat.toFixed(5)}
               {'  '}
-              <span className="text-canopy-green">lng</span>{' '}
+              <span className="text-greentop-green">lng</span>{' '}
               {place.lng.toFixed(5)}
             </div>
 
-            {/* Building validity badge */}
-            <div className={`mb-4 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
-              valid
-                ? 'bg-canopy-green/10 text-canopy-green'
-                : 'bg-canopy-red/10 text-canopy-red'
-            }`}>
-              {valid ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  Building detected — ready to analyze
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-3.5 w-3.5 shrink-0" />
-                  No rooftop detected here — select a building to analyze
-                </>
-              )}
-            </div>
+            {/* Only flag the failure case; a detected building needs no badge. */}
+            {!valid && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg bg-greentop-red/10 px-3 py-2 text-xs font-medium text-greentop-red">
+                <XCircle className="h-3.5 w-3.5 shrink-0" />
+                No rooftop detected here
+              </div>
+            )}
 
             <Button
               onClick={handleAnalyze}
               disabled={loading || !valid}
-              className="w-full gap-2 bg-canopy-green text-canopy-bg hover:bg-canopy-green-dim disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full gap-2 bg-greentop-green text-white hover:bg-greentop-green-dim disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? (
                 <>
@@ -167,8 +153,8 @@ export function SearchResultPopup() {
                 </>
               ) : (
                 <>
-                  <Zap className="h-4 w-4" />
-                  Analyze
+                  Continue
+                  <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </Button>

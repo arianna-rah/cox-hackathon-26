@@ -49,7 +49,7 @@ async function reverseGeocode(lat: number, lng: number) {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
       {
-        headers: { 'User-Agent': 'canopy-hackathon/1.0 (cox-hackathon-26)' },
+        headers: { 'User-Agent': 'greentop-hackathon/1.0 (cox-hackathon-26)' },
         next: { revalidate: 60 },
       },
     )
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
       {
         headers: {
           // Nominatim usage policy requires an identifying User-Agent.
-          'User-Agent': 'canopy-hackathon/1.0 (cox-hackathon-26)',
+          'User-Agent': 'greentop-hackathon/1.0 (cox-hackathon-26)',
         },
         // Cache identical queries briefly to be gentle on the free API.
         next: { revalidate: 60 },
