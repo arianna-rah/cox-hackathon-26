@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SidebarShell } from '@/components/sidebar/SidebarShell'
@@ -7,6 +9,7 @@ import { SearchBar } from '@/components/map/SearchBar'
 import { SearchResultPopup } from '@/components/map/SearchResultPopup'
 import { MapModeToggle } from '@/components/map/MapModeToggle'
 import { useMapStore } from '@/stores/mapStore'
+import { useAuthStore } from '@/stores/authStore'
 
 const MapContainer = dynamic(() => import('@/components/map/MapContainer'), {
   ssr: false,
@@ -16,7 +19,18 @@ const BuildingScene3D = dynamic(() => import('@/components/scene3d/BuildingScene
 })
 
 export default function MapPage() {
+  const router = useRouter()
+  const user = useAuthStore((s) => s.user)
   const selectedBuilding = useMapStore((s) => s.selectedBuilding)
+
+  useEffect(() => {
+    if (!user) {
+      router.replace('/login')
+    }
+  }, [user, router])
+
+  // Don't render the map until we know the user is authenticated
+  if (!user) return null
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-canopy-bg">

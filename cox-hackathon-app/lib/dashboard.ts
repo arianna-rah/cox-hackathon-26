@@ -132,6 +132,22 @@ export function buildFallbackDashboard(
 
   // ── Risks ──
   const risks: DashRisk[] = []
+
+  // Warn if the building is so structurally limited that only the lightest options are feasible.
+  const nonTrivialFeasible = ranked.some(
+    (o) => o.feasible && o.id !== 'cool-roof' && o.id !== 'beekeeping',
+  )
+  if (!nonTrivialFeasible && building.maxLoadPSF < 12) {
+    risks.push({
+      title: 'Very limited structural capacity — few options viable',
+      severity: 'High',
+      explanation:
+        `At ${building.maxLoadPSF} lbs/ft² this roof can only safely support Cool Roof Coating and Rooftop Beekeeping. ` +
+        `Solar panels (4 lbs/ft²), green roofs (12–100 lbs/ft²), and cisterns (2 lbs/ft²) exceed the current limit. ` +
+        `A licensed structural engineer would need to assess reinforcement options before any heavier installation.`,
+    })
+  }
+
   if (!top.feasible)
     risks.push({
       title: 'Structural load limitation',

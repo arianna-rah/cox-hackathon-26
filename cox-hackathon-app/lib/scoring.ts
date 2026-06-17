@@ -107,6 +107,26 @@ export function realSolarEconomics(solar: SolarData) {
   return { upfrontCost, annualSavings, co2Tons, roiMonths, annualKwh: solar.annualKwh }
 }
 
+/**
+ * Returns true when the building has a flat or low-slope roof suitable for
+ * green roofs, beekeeping, cisterns, etc.
+ */
+function isFlatRoof(b: Building, solar?: SolarData | null): boolean {
+  if (solar?.roofPlanes && solar.roofPlanes.length > 0) {
+    const sorted = [...solar.roofPlanes].sort((a, z) => z.areaM2 - a.areaM2)
+    const top = sorted.slice(0, Math.min(3, sorted.length))
+    const totalArea = top.reduce((s, p) => s + p.areaM2, 0)
+    const weightedPitch = totalArea > 0
+      ? top.reduce((s, p) => s + p.pitchDeg * (p.areaM2 / totalArea), 0)
+      : top[0].pitchDeg
+    return weightedPitch < 15
+  }
+  const rt = b.roofType.toLowerCase()
+  if (/pitch|gable|hip|shed|gambrel|mansard|barrel|slope/i.test(rt)) return false
+  if (/flat|membrane|tpo|epdm|modified|built-up|bur|gravel/i.test(rt)) return true
+  return b.buildingType !== 'residential'
+}
+
 export function scoreAndRankOptions(
   b: Building,
   p: UserPreferences,
@@ -114,8 +134,24 @@ export function scoreAndRankOptions(
 ): ScoredOption[] {
   // Prefer the Google-measured roof area when available.
   const roofArea = solar?.roofAreaSqFt ?? b.roofAreaSqFt
+  const flatRoof = isFlatRoof(b, solar)
+
   return ROOF_OPTIONS.map((o) => {
-    const feasible = o.structuralLoadPSF <= b.maxLoadPSF
+    const structurallyFeasible = o.structuralLoadPSF <= b.maxLoadPSF
+    // Flat-roof-only options are not applicable on pitched or inaccessible roofs.
+    const roofTypeFeasible = !o.requiresFlatRoof || flatRoof
+    // Beekeeping requires an accessible flat roof at manageable height AND a
+    // structurally decent building (maxLoadPSF >= 10 as a loose proxy).
+    // Office buildings are typically multi-story — without knowing the actual
+    // floor count we can't safely recommend hive management on a high-rise roof.
+    const beekeepingAccessible =
+      o.id !== 'beekeeping' ||
+      (b.maxLoadPSF >= 10 &&
+        (b.buildingType === 'warehouse' ||
+          b.buildingType === 'retail' ||
+          (b.buildingType === 'residential' && flatRoof)))
+    const feasible = structurallyFeasible && roofTypeFeasible && beekeepingAccessible
+
     let cost = o.costFixed ?? (o.costPerSqFt ?? 0) * roofArea
     let net = (o.annualSavingsFixed ?? (o.annualSavingsPerSqFt ?? 0) * roofArea) + (o.annualRevenueFixed ?? 0)
     let co2 = o.co2TonsPerYear ?? (o.co2TonsPerSqFtPerYear ?? 0) * roofArea
@@ -133,15 +169,24 @@ export function scoreAndRankOptions(
     }
 
     const roi = net <= 0 ? 999 : Math.round((cost / net) * 12)
+    const feasibilityFactor = feasible ? o.feasibilityBase : o.feasibilityBase * 0.2
     const score =
       Math.max(0, 100 - (roi / 48) * 100)      * (p.costSensitivity * 0.35) +
       Math.min(100, co2 * 4)                    * ((1 - p.costSensitivity) * 0.30) +
-      (feasible ? o.feasibilityBase : o.feasibilityBase * 0.2) * 0.20 +
+      feasibilityFactor                          * 0.20 +
       (cost <= p.budgetDollars ? 100 : Math.max(0, 100 - ((cost - p.budgetDollars) / p.budgetDollars) * 100)) * 0.15
+
     const warningsForBuilding = [...o.warningFlags]
-    if (!feasible) warningsForBuilding.unshift(
+    if (!structurallyFeasible) warningsForBuilding.unshift(
       `⚠ Building max load (${b.maxLoadPSF} lbs/sq ft) is below requirement (${o.structuralLoadPSF} lbs/sq ft)`
     )
+    if (!roofTypeFeasible) warningsForBuilding.unshift(
+      `⚠ Requires a flat or low-slope roof — this building's roof type makes ${o.name} impractical`
+    )
+    if (!beekeepingAccessible) warningsForBuilding.unshift(
+      `⚠ Rooftop beekeeping requires a safe, accessible flat roof on a low-rise building (≤ ~6 stories) — hive management and carrying honey supers (50+ lbs) at height is unsafe and may violate OSHA fall-protection rules`
+    )
+
     return { ...o, score, feasible, uptrontCost: cost, annualNetDollars: net, roiMonths: roi, co2TonsPerYear: co2, annualKwh, isReal, warningsForBuilding }
   }).sort((a, z) => z.score - a.score)
 }

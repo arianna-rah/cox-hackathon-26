@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Trophy,
   Sparkles,
   Users,
   ArrowLeft,
+  ArrowRight,
   TriangleAlert,
   Satellite,
   Leaf,
@@ -35,6 +37,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
+import { useDashboardStore } from '@/stores/dashboardStore'
 import { buildFallbackDashboard } from '@/lib/dashboard'
 import { optionEnergyImpact, billToAnnualKwh } from '@/lib/scoring'
 import { coveragePlan } from '@/lib/coverage'
@@ -167,6 +170,7 @@ function MiniBars({
 }
 
 export function Results() {
+  const router = useRouter()
   const storedDash = useAnalysisStore((s) => s.dashboardAnalysis)
   const result = useAnalysisStore((s) => s.result)
   const solar = useAnalysisStore((s) => s.solar)
@@ -174,6 +178,7 @@ export function Results() {
   const selectedOptionId = useAnalysisStore((s) => s.selectedOptionId)
   const setSelectedOptionId = useAnalysisStore((s) => s.setSelectedOptionId)
   const advanceTo = useMapStore((s) => s.advanceTo)
+  const addPlan = useDashboardStore((s) => s.addPlan)
   const [chartsOpen, setChartsOpen] = useState(false)
 
   // When the selection changes (incl. from clicking a widget on the 3D roof),
@@ -699,6 +704,32 @@ export function Results() {
             ))}
           </ul>
         </details>
+      )}
+
+      {/* ── Build My Plan CTA ── */}
+      {result && dash && (
+        <button
+          type="button"
+          onClick={() => {
+            // Resolve the currently selected option (or fall back to #1 ranked)
+            const selectedOption =
+              (selectedOptionId
+                ? result.rankedOptions.find((o) => o.id === selectedOptionId)
+                : null) ?? result.rankedOptions[0]
+            if (!selectedOption) return
+            const planId = addPlan({
+              building: result.building,
+              selectedOption,
+              dashboard: dash,
+              solar,
+            })
+            router.push(`/plan/${planId}`)
+          }}
+          className="flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-canopy-green px-4 py-3.5 text-sm font-semibold text-canopy-bg shadow-lg transition-opacity hover:opacity-90 active:scale-[0.98]"
+        >
+          Build My Plan
+          <ArrowRight className="h-4 w-4" />
+        </button>
       )}
 
       <Button

@@ -4,7 +4,11 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Leaf, ArrowRight } from 'lucide-react'
 
-export function Hero() {
+interface HeroProps {
+  loginHref?: string
+}
+
+export function Hero({ loginHref = '/map' }: HeroProps) {
   return (
     <section className="relative flex min-h-screen flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
       {/* ambient gradient glow */}
@@ -33,7 +37,7 @@ export function Hero() {
         </p>
 
         <Link
-          href="/map"
+          href={loginHref}
           className="group mt-10 inline-flex items-center gap-2 rounded-full bg-canopy-green px-7 py-3.5 text-base font-semibold text-canopy-bg transition-colors hover:bg-canopy-green-dim"
         >
           Explore Atlanta Rooftops
