@@ -1,7 +1,6 @@
 ## COX HACKATHON PROJECT
 
-Try it out
-cox-hackathon-26-iota.vercel.app
+Try it out: cox-hackathon-26-iota.vercel.app
 
 
 Inspiration
