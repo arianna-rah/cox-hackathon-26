@@ -177,6 +177,8 @@ export function Results() {
     : null
   const energy = result ? optionEnergyImpact(result.building, recOption, solar, overrideKwh) : null
   const usableAreaPct = solar?.roofCoveragePct ?? plan.changeablePct
+  // No surface retrofit is feasible — show the verdict, not financial metrics.
+  const nothingDoable = plan.components.length === 0
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -194,30 +196,34 @@ export function Results() {
           </p>
         )}
 
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
-          <Metric label="Upfront" value={money(m.upfrontCost)} />
-          <Metric label="Payback" value={years(m.paybackYears)} />
-          <Metric label="CO₂ / yr" value={tons(m.co2ReductionPerYear)} good />
-        </div>
+        {!nothingDoable && (
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            <Metric label="Upfront" value={money(m.upfrontCost)} />
+            <Metric label="Payback" value={years(m.paybackYears)} />
+            <Metric label="CO₂ / yr" value={tons(m.co2ReductionPerYear)} good />
+          </div>
+        )}
       </div>
 
       {/* ── 2. Roof allocation (how much becomes what, in %) ── */}
       <RoofAllocation plan={plan} />
 
       {/* ── 3. Key metrics ── */}
-      <Section icon={Trophy} title="Key Metrics">
-        <div className="grid grid-cols-2 gap-2.5">
-          <Metric label="Upfront cost" value={money(m.upfrontCost)} />
-          <Metric label="Net after incentives" value={money(m.netCostAfterIncentives)} good />
-          <Metric label="Annual savings" value={`${money(m.annualSavings)}/yr`} good />
-          <Metric label="Payback" value={years(m.paybackYears)} />
-          <Metric label="ROI" value={pct(m.roiPercent)} good />
-          <Metric label="CO₂ / yr" value={tons(m.co2ReductionPerYear)} good />
-        </div>
-      </Section>
+      {!nothingDoable && (
+        <Section icon={Trophy} title="Key Metrics">
+          <div className="grid grid-cols-2 gap-2.5">
+            <Metric label="Upfront cost" value={money(m.upfrontCost)} />
+            <Metric label="Net after incentives" value={money(m.netCostAfterIncentives)} good />
+            <Metric label="Annual savings" value={`${money(m.annualSavings)}/yr`} good />
+            <Metric label="Payback" value={years(m.paybackYears)} />
+            <Metric label="ROI" value={pct(m.roiPercent)} good />
+            <Metric label="CO₂ / yr" value={tons(m.co2ReductionPerYear)} good />
+          </div>
+        </Section>
+      )}
 
       {/* ── 4. Energy & roof use ── */}
-      {energy && (
+      {!nothingDoable && energy && (
         <Section icon={Zap} title="Energy & Roof Use">
           <div className="rounded-xl border border-greentop-green/30 bg-greentop-green/5 p-4">
             <div className="grid grid-cols-2 gap-2.5">
@@ -274,6 +280,7 @@ export function Results() {
       )}
 
       {/* ── 5. Environmental impact ── */}
+      {!nothingDoable && (
       <Section icon={Leaf} title="Environmental Impact">
         <div className="rounded-xl border border-greentop-green/30 bg-greentop-green/5 p-4">
           <div className="grid grid-cols-2 gap-2.5">
@@ -302,6 +309,7 @@ export function Results() {
           </div>
         </div>
       </Section>
+      )}
 
       {/* ── 6. Plan components — clickable widgets, expand for implementation ── */}
       {plan.components.length > 0 && (

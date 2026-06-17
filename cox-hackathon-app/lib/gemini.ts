@@ -69,12 +69,18 @@ export async function fetchGeminiPlan(
 
     if (components.length === 0) return null
 
+    // Force the allocation to total 100%: surface + bee footprint = usable, the
+    // rest unusable. Rainwater is a catchment (no surface), excluded from maths.
+    const allocSum = clampPct(
+      components.filter((c) => c.optionId !== 'rainwater').reduce((s, c) => s + c.coveragePct, 0),
+    )
+
     return {
       strategyName: String(raw.strategyName ?? components.map((c) => c.name).join(' + ')),
       summary: String(raw.summary ?? ''),
       components,
-      changeablePct: clampPct(raw.changeablePct ?? 100 - clampPct(raw.unusablePct)),
-      unusablePct: clampPct(raw.unusablePct),
+      changeablePct: allocSum,
+      unusablePct: clampPct(100 - allocSum),
       unusableReason: String(raw.unusableReason ?? ''),
     }
   } catch {

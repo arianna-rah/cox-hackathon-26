@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Map, {
   Marker,
-  NavigationControl,
   type MapRef,
   type MapLayerMouseEvent,
 } from 'react-map-gl/maplibre'
-import { MapPin, Loader2 } from 'lucide-react'
+import { MapPin, Loader2, Plus, Minus, Hand, SquareDashedMousePointer } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { MAP_DEFAULTS, ESRI_SATELLITE_TILES } from '@/lib/constants'
 import { useMapStore } from '@/stores/mapStore'
@@ -123,6 +123,7 @@ export default function MapContainer() {
   const selectedBuilding = useMapStore((s) => s.selectedBuilding)
   const searchPlace = useMapStore((s) => s.searchPlace)
   const mapMode = useMapStore((s) => s.mapMode)
+  const setMapMode = useMapStore((s) => s.setMapMode)
 
   // Keep the current mode in a ref so the once-bound window listener and the
   // map event handlers always read the latest value.
@@ -260,11 +261,54 @@ export default function MapContainer() {
         onMouseUp={endDrag}
         style={{ width: '100%', height: '100%' }}
       >
-        <NavigationControl position="bottom-right" />
         <SearchMarker />
         <BuildingLayer />
         <CommunityLayer />
       </Map>
+
+      {/* Vertical control: zoom-in over the mode toggle, zoom-out under it. */}
+      <div className="absolute left-4 top-4 z-10 flex flex-col gap-1 rounded-2xl border border-greentop-border bg-greentop-surface/90 p-1.5 shadow-lg backdrop-blur-md">
+        <button
+          onClick={() => mapRef.current?.getMap().zoomIn()}
+          aria-label="Zoom in"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-greentop-muted transition-colors hover:bg-greentop-bg/60 hover:text-greentop-text"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => setMapMode('pan')}
+          aria-pressed={mapMode === 'pan'}
+          aria-label="Move"
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-xl transition-colors',
+            mapMode === 'pan'
+              ? 'bg-greentop-green text-white'
+              : 'text-greentop-muted hover:bg-greentop-bg/60 hover:text-greentop-text',
+          )}
+        >
+          <Hand className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => setMapMode('select')}
+          aria-pressed={mapMode === 'select'}
+          aria-label="Select"
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-xl transition-colors',
+            mapMode === 'select'
+              ? 'bg-greentop-green text-white'
+              : 'text-greentop-muted hover:bg-greentop-bg/60 hover:text-greentop-text',
+          )}
+        >
+          <SquareDashedMousePointer className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => mapRef.current?.getMap().zoomOut()}
+          aria-label="Zoom out"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-greentop-muted transition-colors hover:bg-greentop-bg/60 hover:text-greentop-text"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+      </div>
 
       {box && (
         <div

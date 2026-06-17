@@ -22,6 +22,15 @@ import { coveragePlan } from '@/lib/coverage'
 
 const clampPct = (n: number) => Math.min(100, Math.max(0, Math.round(n)))
 
+// Options that occupy roof *surface* (vs. bees = footprint, rainwater = catchment).
+// A meaningful retrofit requires at least one of these to be feasible.
+const SURFACE_IDS = new Set([
+  'solar',
+  'cool-roof',
+  'green-roof-extensive',
+  'green-roof-intensive',
+])
+
 /** Short benefit line for a plan component (savings, revenue, or non-$ benefit). */
 function benefitLine(o: ScoredOption): string {
   if (o.annualRevenueFixed && o.annualRevenueFixed > 0)
@@ -56,7 +65,22 @@ export function buildFallbackPlan(
   solar: SolarData | null,
 ): DashRoofPlan {
   const feasible = ranked.filter((o) => o.feasible)
-  const primary = feasible[0] ?? ranked[0]
+  // A real retrofit needs a surface option (solar / coating / green roof). When
+  // none is feasible, a tiny beehive footprint isn't a meaningful plan — report
+  // that nothing substantial is doable rather than a contradictory 3%/100% split.
+  const surfaceFeasible = feasible.filter((o) => SURFACE_IDS.has(o.id))
+  if (surfaceFeasible.length === 0) {
+    return {
+      strategyName: 'No viable retrofit',
+      summary: `This roof can't currently support a rooftop retrofit — structural load limits or roof condition rule out solar, cool-roof coatings, and green roofs. A structural review is the recommended first step before any rooftop project.`,
+      components: [],
+      changeablePct: 0,
+      unusablePct: 100,
+      unusableReason: 'Structural load limits and roof condition rule out surface interventions on this roof.',
+    }
+  }
+
+  const primary = surfaceFeasible[0]
   const components: DashPlanComponent[] = [planComponent(primary, solar)]
 
   // A complementary piece that genuinely shares the roof without conflicting:
@@ -69,20 +93,17 @@ export function buildFallbackPlan(
   )
   if (complement) components.push(planComponent(complement, solar))
 
-  // Surface-coverage components compete for the same area; catchment/footprint
-  // ones (rainwater, bees) don't, so they don't eat into the usable surface.
-  const surfaceComps = components.filter(
-    (c) => c.optionId !== 'rainwater' && c.optionId !== 'beekeeping',
-  )
-  const surfacePct = surfaceComps.reduce((sum, c) => sum + c.coveragePct, 0)
-  const unusablePct = clampPct(Math.max(building.yearBuilt < 1980 ? 15 : 8, 100 - surfacePct))
+  // Allocation always sums to 100%: surface coverage + bee footprint + unusable.
+  // Rainwater is a catchment (whole roof, no surface), so it's excluded from the
+  // allocation maths. Reserve a minimum unusable share for equipment & setbacks.
+  const minUnusable = building.yearBuilt < 1980 ? 15 : 8
+  const beeComp = components.find((c) => c.optionId === 'beekeeping')
+  const beePct = beeComp?.coveragePct ?? 0
+  const surfaceComp = components.find((c) => SURFACE_IDS.has(c.optionId))!
+  surfaceComp.coveragePct = clampPct(Math.min(surfaceComp.coveragePct, 100 - minUnusable - beePct))
 
-  // Keep the numbers honest: surface coverage can't exceed the usable area, so
-  // the allocation (components + unusable) adds up to 100%.
-  const usablePct = 100 - unusablePct
-  if (surfacePct > usablePct && surfacePct > 0) {
-    for (const c of surfaceComps) c.coveragePct = clampPct((c.coveragePct / surfacePct) * usablePct)
-  }
+  const usedPct = clampPct(surfaceComp.coveragePct + beePct)
+  const unusablePct = clampPct(100 - usedPct)
 
   const reasons = ['rooftop HVAC, vents and equipment', 'roof setbacks, walkways and drainage']
   if (building.yearBuilt < 1980) reasons.push('structural load limits on this older roof')
@@ -95,7 +116,7 @@ export function buildFallbackPlan(
     strategyName,
     summary: `Convert ${building.name}'s roof with ${strategyName.toLowerCase()} — using the parts of the roof that are structurally and solar-suitable, while leaving equipment and access zones clear.`,
     components,
-    changeablePct: clampPct(100 - unusablePct),
+    changeablePct: usedPct,
     unusablePct,
     unusableReason: `Reserved for ${reasons.join(', ')}.`,
   }
