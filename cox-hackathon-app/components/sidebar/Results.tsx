@@ -374,11 +374,15 @@ export function Results() {
       {result && !nothingDoable && (
         <Button
           onClick={() => {
+            // Priority: whichever option card the user last opened → first plan
+            // component → overall top scorer. Never fall through to a mismatched
+            // option just because the user collapsed a card before clicking.
             const selectedOption =
               (selectedOptionId
                 ? result.rankedOptions.find((o) => o.id === selectedOptionId)
                 : null) ??
               result.rankedOptions.find((o) => o.id === plan.components[0]?.optionId) ??
+              result.rankedOptions.find((o) => o.feasible) ??
               result.rankedOptions[0]
             if (!selectedOption) return
             // Rebuild the dashboard with the user's chosen option ranked first

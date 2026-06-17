@@ -175,6 +175,17 @@ export function buildFallbackPlan(
   const reasons = ['rooftop HVAC, vents and equipment', 'roof setbacks, walkways and drainage']
   if (building.yearBuilt < 1980) reasons.push('structural load limits on this older roof')
 
+  // For revenue goal, surface options are still structurally primary but the
+  // highest-earning option (beekeeping) should lead the strategy name and get
+  // the star pin so the UI clearly reflects the user's revenue intent.
+  if (goal === 'revenue') {
+    const beeIdx = components.findIndex((c) => c.optionId === 'beekeeping')
+    if (beeIdx > 0) {
+      const [bee] = components.splice(beeIdx, 1)
+      components.unshift(bee)
+    }
+  }
+
   const names = components.map((c) => c.name)
   const strategyName =
     names.length > 1 ? `${names[0]} + ${names.slice(1).join(' + ')}` : names[0]

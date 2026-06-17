@@ -91,8 +91,16 @@ Rules:
   uses (panels/beds/coating area). annualBenefit: one short line ($ saved or earned per
   year, or the social/biodiversity benefit for non-financial options).
 - summary: 1-2 sentence plain-English project description. whyThisWins: 1-2 sentences.
-- Respect the owner's budget and primary goal. Respect structural limits (low max load
-  → avoid heavy intensive green roofs).
+- STRONGLY respect the owner's primary goal when selecting the FIRST (lead) component:
+    savings → prioritise the option with the fastest payback (often cool-roof)
+    revenue → prioritise beekeeping or solar (cash-generating options)
+    environment → prioritise solar or green roofs (highest CO₂ reduction)
+    community → prioritise green roofs with rainwater and/or beekeeping
+- Respect structural limits (low max load → avoid heavy intensive green roofs).
+- Do NOT always default to solar — match the lead option to the goal and the CANDIDATE
+  OPTIONS list (which is already scored and ranked for this building and goal).
+- The lead (first) component in the response should match the top feasible option in
+  the CANDIDATE OPTIONS list unless there is a clear structural or site reason not to.
 
 BUILDING: ${JSON.stringify(building)}
 GOOGLE SOLAR DATA (owner may have edited these numbers): ${JSON.stringify(solar)}

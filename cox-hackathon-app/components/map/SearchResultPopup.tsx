@@ -171,7 +171,8 @@ async function buildingFromPlace(
     maxLoadPSF: 30,
     sunExposureHrsPerDay: solar?.sun_exposure_hrs_per_day ?? 5.0,
     heatIslandIntensityF: estimateHeatIslandF(buildingTypeFromOSM(category, osmType), solar?.roof_type ?? 'Flat', 2000),
-    annualStormwaterCreditDollars: 1200,
+    // Atlanta stormwater utility: ~$30/ERU/month, 1 ERU = 3,200 sq ft impervious surface.
+    annualStormwaterCreditDollars: Math.round((solar?.roof_area_m2 ? Math.round(solar.roof_area_m2 * 10.764) : 10000) / 3200 * 30 * 12),
     neighborIds: [],
     precomputedSolarKwhPerYear: solar?.max_annual_kwh ?? 150000,
   }

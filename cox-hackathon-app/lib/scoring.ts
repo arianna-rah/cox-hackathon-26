@@ -178,19 +178,22 @@ export function scoreAndRankOptions(
 
     // Goal-specific multipliers so the scorer personalises to user intent.
     // community: green roofs + rainwater build neighbourhood resilience → 30% boost
-    // environment: highest CO₂ and biodiversity options → 20% boost
-    // revenue: options that generate cash rather than just savings → 15% boost
+    // environment: highest CO₂ and biodiversity options — solar gets a strong enough
+    //   boost (1.45) to beat cool-roof even at the default 50% cost-sensitivity slider
+    // revenue: options that generate cash rather than just savings → strong beekeeping boost
     const goalBoost = (() => {
       if (p.primaryGoal === 'community') {
         if (o.id.includes('green') || o.id === 'rainwater') return 1.30
         if (o.id === 'beekeeping') return 1.15
       }
       if (p.primaryGoal === 'environment') {
-        if (o.id.includes('green') || o.id === 'solar') return 1.20
+        if (o.id === 'solar') return 1.45
+        if (o.id.includes('green')) return 1.30
         if (o.id === 'rainwater') return 1.10
       }
       if (p.primaryGoal === 'revenue') {
-        if (o.id === 'beekeeping' || o.id === 'solar') return 1.15
+        if (o.id === 'beekeeping') return 1.35
+        if (o.id === 'solar') return 1.15
       }
       return 1.0
     })()
