@@ -2,7 +2,7 @@
 // layer URLs (DSM height model, RGB aerial imagery, building mask) for a point.
 // GOOGLE_SOLAR_KEY is read here only and never exposed to the browser.
 
-export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -37,7 +37,10 @@ export async function GET(request: Request) {
     const data = await upstream.text();
     return new Response(data, {
       status: upstream.status,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600",
+      },
     });
   } catch (e) {
     return Response.json({ error: String(e) }, { status: 502 });
