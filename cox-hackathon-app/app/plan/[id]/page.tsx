@@ -29,6 +29,7 @@ import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisStore } from '@/stores/analysisStore'
 import { CHECKLISTS } from '@/lib/checklists'
 import { computeProjections } from '@/lib/projections'
+import { coveragePlan } from '@/lib/coverage'
 
 const BuildingScene3D = dynamic(() => import('@/components/scene3d/BuildingScene3D'), {
   ssr: false,
@@ -127,12 +128,45 @@ export default function PlanPage() {
     }
   }, [])
 
-  // Sync stores so BuildingScene3D renders the right building
+  // Sync stores so BuildingScene3D renders only the selected option's widget.
   useEffect(() => {
     if (!plan) return
     useMapStore.getState().selectBuilding(plan.building)
     useAnalysisStore.getState().setSolar(plan.solar)
     useAnalysisStore.getState().setSelectedOptionId(plan.selectedOption.id)
+
+    // Build a one-component plan so the 3D scene shows exactly one widget —
+    // the option the user actually chose, not the full ranked analysis.
+    const opt = plan.selectedOption
+    const cov = coveragePlan(opt.id, plan.solar, {
+      yearBuilt: plan.building.yearBuilt,
+      maxLoadPSF: plan.building.maxLoadPSF,
+      sunExposureHrsPerDay: plan.building.sunExposureHrsPerDay,
+      buildingType: plan.building.buildingType,
+      roofAreaSqFt: plan.building.roofAreaSqFt,
+    })
+    const singleComponent = {
+      optionId: opt.id,
+      name: opt.name,
+      coveragePct: cov.coveredPct,
+      upfrontCost: Math.round(opt.uptrontCost ?? 0),
+      annualBenefit: '',
+      implementation: cov.note,
+    }
+    const existingPlan = plan.dashboard.plan
+    useAnalysisStore.getState().setDashboardAnalysis({
+      ...plan.dashboard,
+      plan: existingPlan
+        ? { ...existingPlan, components: [singleComponent] }
+        : {
+            strategyName: opt.name,
+            summary: opt.shortDescription,
+            components: [singleComponent],
+            changeablePct: cov.coveredPct,
+            unusablePct: 100 - cov.coveredPct,
+            unusableReason: 'Reserved for equipment, setbacks, and access.',
+          },
+    })
   }, [plan])
 
   if (!plan) {

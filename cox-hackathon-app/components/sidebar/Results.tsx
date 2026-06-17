@@ -164,7 +164,7 @@ export function Results() {
   // Always have a plan: prefer the stored one, else derive deterministically.
   const plan: DashRoofPlan =
     dash.plan ??
-    (result ? buildFallbackPlan(result.building, result.rankedOptions, solar) : null) ?? {
+    (result ? buildFallbackPlan(result.building, result.rankedOptions, solar, result.preferences) : null) ?? {
       strategyName: dash.recommendedOption.name,
       summary: dash.recommendedOption.shortHeadline,
       components: [],

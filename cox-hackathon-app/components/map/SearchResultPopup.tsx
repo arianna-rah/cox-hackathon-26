@@ -72,6 +72,38 @@ function buildingTypeFromOSM(category: string, osmType: string): Building['build
   return 'office'
 }
 
+/**
+ * Estimate the urban heat island (UHI) intensity above the rural Atlanta baseline.
+ * Source: EPA "Reducing Urban Heat Islands" fact sheets; Atlanta UHI research
+ * (Stone et al. 2012 — Atlanta UHI 2–8°F depending on land cover and density).
+ * Atlanta mean UHI: ~4°F baseline for urban commercial zones.
+ */
+function estimateHeatIslandF(
+  buildingType: Building['buildingType'],
+  roofType: string,
+  yearBuilt: number,
+): number {
+  // Atlanta urban commercial baseline (EPA / Georgia EPD data)
+  let base = 4.0
+
+  // Denser/more impervious building types increase local UHI
+  if (buildingType === 'office') base += 1.8      // dense urban core, minimal green
+  else if (buildingType === 'retail') base += 1.2  // parking lots, impervious surfaces
+  else if (buildingType === 'warehouse') base += 0.6
+  else if (buildingType === 'residential') base += 0.3
+
+  // Dark roofs (common in commercial stock) re-radiate heat into the local microclimate
+  if (/flat|membrane|tpo|epdm|built-up|gravel|dark/i.test(roofType)) base += 0.5
+
+  // Older buildings were built before green-space codes; surroundings are more paved
+  if (yearBuilt < 1970) base += 0.7
+  else if (yearBuilt < 1990) base += 0.3
+  else if (yearBuilt >= 2010) base -= 0.3  // modern infill often has more tree canopy
+
+  // Clamp to a realistic Atlanta range (EPA: 1.5–10°F)
+  return Math.round(Math.min(10, Math.max(1.5, base)) * 10) / 10
+}
+
 async function buildingFromPlace(
   name: string,
   address: string,
@@ -138,7 +170,7 @@ async function buildingFromPlace(
     roofMaterial: 'Unknown',
     maxLoadPSF: 30,
     sunExposureHrsPerDay: solar?.sun_exposure_hrs_per_day ?? 5.0,
-    heatIslandIntensityF: 5.5,
+    heatIslandIntensityF: estimateHeatIslandF(buildingTypeFromOSM(category, osmType), solar?.roof_type ?? 'Flat', 2000),
     annualStormwaterCreditDollars: 1200,
     neighborIds: [],
     precomputedSolarKwhPerYear: solar?.max_annual_kwh ?? 150000,

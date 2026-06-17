@@ -170,11 +170,31 @@ export function scoreAndRankOptions(
 
     const roi = net <= 0 ? 999 : Math.round((cost / net) * 12)
     const feasibilityFactor = feasible ? o.feasibilityBase : o.feasibilityBase * 0.2
-    const score =
+    const rawScore =
       Math.max(0, 100 - (roi / 48) * 100)      * (p.costSensitivity * 0.35) +
       Math.min(100, co2 * 4)                    * ((1 - p.costSensitivity) * 0.30) +
       feasibilityFactor                          * 0.20 +
       (cost <= p.budgetDollars ? 100 : Math.max(0, 100 - ((cost - p.budgetDollars) / p.budgetDollars) * 100)) * 0.15
+
+    // Goal-specific multipliers so the scorer personalises to user intent.
+    // community: green roofs + rainwater build neighbourhood resilience → 30% boost
+    // environment: highest CO₂ and biodiversity options → 20% boost
+    // revenue: options that generate cash rather than just savings → 15% boost
+    const goalBoost = (() => {
+      if (p.primaryGoal === 'community') {
+        if (o.id.includes('green') || o.id === 'rainwater') return 1.30
+        if (o.id === 'beekeeping') return 1.15
+      }
+      if (p.primaryGoal === 'environment') {
+        if (o.id.includes('green') || o.id === 'solar') return 1.20
+        if (o.id === 'rainwater') return 1.10
+      }
+      if (p.primaryGoal === 'revenue') {
+        if (o.id === 'beekeeping' || o.id === 'solar') return 1.15
+      }
+      return 1.0
+    })()
+    const score = rawScore * goalBoost
 
     const warningsForBuilding = [...o.warningFlags]
     if (!structurallyFeasible) warningsForBuilding.unshift(

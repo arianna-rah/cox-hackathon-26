@@ -18,7 +18,17 @@ import type {
 } from '@/types'
 import type { SolarData } from '@/lib/solar'
 import { ATLANTA } from '@/lib/constants'
-import { coveragePlan } from '@/lib/coverage'
+import { coveragePlan, type BuildingCoverageSnap } from '@/lib/coverage'
+
+function buildingSnap(building: Building): BuildingCoverageSnap {
+  return {
+    yearBuilt: building.yearBuilt,
+    maxLoadPSF: building.maxLoadPSF,
+    sunExposureHrsPerDay: building.sunExposureHrsPerDay,
+    buildingType: building.buildingType,
+    roofAreaSqFt: building.roofAreaSqFt,
+  }
+}
 
 const clampPct = (n: number) => Math.min(100, Math.max(0, Math.round(n)))
 
@@ -41,8 +51,8 @@ function benefitLine(o: ScoredOption): string {
   return o.bestFor
 }
 
-function planComponent(o: ScoredOption, solar: SolarData | null): DashPlanComponent {
-  const cov = coveragePlan(o.id, solar)
+function planComponent(o: ScoredOption, solar: SolarData | null, building: Building): DashPlanComponent {
+  const cov = coveragePlan(o.id, solar, buildingSnap(building))
   return {
     optionId: o.id,
     name: o.name,
@@ -54,20 +64,26 @@ function planComponent(o: ScoredOption, solar: SolarData | null): DashPlanCompon
 }
 
 /**
- * Deterministic recommended plan — the single best strategy, optionally pairing
- * the top option with a complementary low-footprint one (e.g. solar + bees).
- * Used when Gemini is unavailable so the dashboard + 3D widgets always have a
- * coherent plan to show.
+ * Deterministic recommended plan — selects a coherent multi-option strategy
+ * personalised to the user's primary goal and the building's real characteristics.
+ *
+ * - community goal  → prioritise green roofs; include rainwater + beekeeping
+ * - environment     → prefer highest-CO₂ options first
+ * - savings/revenue → scorer's rank already reflects this
+ *
+ * Allocation always sums to 100%: surface % + bee footprint % + unusable %.
+ * Rainwater is a catchment (full roof, no surface area consumed).
+ * Minimum unusable reserve derived from building age & type per industry guidance.
  */
 export function buildFallbackPlan(
   building: Building,
   ranked: ScoredOption[],
   solar: SolarData | null,
+  prefs?: UserPreferences,
 ): DashRoofPlan {
   const feasible = ranked.filter((o) => o.feasible)
   // A real retrofit needs a surface option (solar / coating / green roof). When
-  // none is feasible, a tiny beehive footprint isn't a meaningful plan — report
-  // that nothing substantial is doable rather than a contradictory 3%/100% split.
+  // none is feasible, a tiny beehive footprint isn't a meaningful plan.
   const surfaceFeasible = feasible.filter((o) => SURFACE_IDS.has(o.id))
   if (surfaceFeasible.length === 0) {
     return {
@@ -80,29 +96,80 @@ export function buildFallbackPlan(
     }
   }
 
-  const primary = surfaceFeasible[0]
-  const components: DashPlanComponent[] = [planComponent(primary, solar)]
+  const goal = prefs?.primaryGoal ?? 'savings'
 
-  // A complementary piece that genuinely shares the roof without conflicting:
-  // bees take a tiny corner; rainwater uses the roof as catchment, not surface.
-  const complement = feasible.find(
-    (o) =>
-      o.id !== primary.id &&
-      ((primary.id === 'solar' && (o.id === 'beekeeping' || o.id === 'rainwater')) ||
-        (primary.id.includes('green') && o.id === 'beekeeping')),
-  )
-  if (complement) components.push(planComponent(complement, solar))
+  // ── Primary option selection ──────────────────────────────────────────────
+  // For community goal: green roofs are the most impactful neighbourhood asset.
+  // The scorer already boosts green-roof scores when goal === 'community', so
+  // surfaceFeasible[0] will often already be a green roof — but we double-check.
+  let primary: ScoredOption
+  if (goal === 'community') {
+    primary =
+      surfaceFeasible.find((o) => o.id === 'green-roof-extensive') ??
+      surfaceFeasible.find((o) => o.id === 'green-roof-intensive') ??
+      surfaceFeasible[0]
+  } else {
+    primary = surfaceFeasible[0]
+  }
 
-  // Allocation always sums to 100%: surface coverage + bee footprint + unusable.
-  // Rainwater is a catchment (whole roof, no surface), so it's excluded from the
-  // allocation maths. Reserve a minimum unusable share for equipment & setbacks.
-  const minUnusable = building.yearBuilt < 1980 ? 15 : 8
+  const components: DashPlanComponent[] = [planComponent(primary, solar, building)]
+
+  // ── Complement selection ──────────────────────────────────────────────────
+  // Community: try to build a full ecosystem — green roof + rainwater + bees.
+  // Other goals: one non-conflicting complement that shares the roof well.
+  if (goal === 'community') {
+    // Rainwater pairs with any surface option (it's a catchment, not surface).
+    const rainwater = feasible.find((o) => o.id === 'rainwater')
+    if (rainwater) components.push(planComponent(rainwater, solar, building))
+    // Beekeeping pairs with green roofs especially well (pollination synergy).
+    const bees = feasible.find((o) => o.id === 'beekeeping' && o.id !== primary.id)
+    if (bees) components.push(planComponent(bees, solar, building))
+    // If primary is extensive green roof, also include cool-roof on the remainder
+    // if structurally the building can't fully support intensive — avoids wasted area.
+    if (
+      primary.id === 'green-roof-extensive' &&
+      components.length < 3
+    ) {
+      const coolRoof = feasible.find((o) => o.id === 'cool-roof' && o.id !== primary.id)
+      if (coolRoof) components.push(planComponent(coolRoof, solar, building))
+    }
+  } else {
+    // Standard complement: low-footprint additions that don't conflict.
+    const complement = feasible.find(
+      (o) =>
+        o.id !== primary.id &&
+        ((primary.id === 'solar' && (o.id === 'beekeeping' || o.id === 'rainwater')) ||
+          (primary.id.includes('green') && (o.id === 'beekeeping' || o.id === 'rainwater')) ||
+          (primary.id === 'cool-roof' && (o.id === 'rainwater' || o.id === 'beekeeping'))),
+    )
+    if (complement) components.push(planComponent(complement, solar, building))
+  }
+
+  // ── Allocation arithmetic ─────────────────────────────────────────────────
+  // Unusable reserve: older buildings need wider setbacks for structural safety.
+  // Industry baseline: 8% for post-1980, 15% for pre-1980 (NREL / FLL guidance).
+  const minUnusable = building.yearBuilt < 1960 ? 20 : building.yearBuilt < 1980 ? 15 : 8
+
   const beeComp = components.find((c) => c.optionId === 'beekeeping')
   const beePct = beeComp?.coveragePct ?? 0
-  const surfaceComp = components.find((c) => SURFACE_IDS.has(c.optionId))!
-  surfaceComp.coveragePct = clampPct(Math.min(surfaceComp.coveragePct, 100 - minUnusable - beePct))
 
-  const usedPct = clampPct(surfaceComp.coveragePct + beePct)
+  // All surface-occupying components (rainwater excluded — it's a catchment).
+  const surfaceComps = components.filter((c) => SURFACE_IDS.has(c.optionId))
+  const maxSurfacePct = 100 - minUnusable - beePct
+
+  if (surfaceComps.length === 1) {
+    surfaceComps[0].coveragePct = clampPct(Math.min(surfaceComps[0].coveragePct, maxSurfacePct))
+  } else if (surfaceComps.length > 1) {
+    // Multiple surface options (e.g. green-roof + cool-roof on remainder):
+    // scale proportionally so they fit within the available area.
+    const total = surfaceComps.reduce((s, c) => s + c.coveragePct, 0)
+    if (total > maxSurfacePct) {
+      const scale = maxSurfacePct / total
+      surfaceComps.forEach((c) => { c.coveragePct = clampPct(Math.round(c.coveragePct * scale)) })
+    }
+  }
+
+  const usedPct = clampPct(surfaceComps.reduce((s, c) => s + c.coveragePct, 0) + beePct)
   const unusablePct = clampPct(100 - usedPct)
 
   const reasons = ['rooftop HVAC, vents and equipment', 'roof setbacks, walkways and drainage']
@@ -114,7 +181,7 @@ export function buildFallbackPlan(
 
   return {
     strategyName,
-    summary: `Convert ${building.name}'s roof with ${strategyName.toLowerCase()} — using the parts of the roof that are structurally and solar-suitable, while leaving equipment and access zones clear.`,
+    summary: `Convert ${building.name}'s roof with ${strategyName.toLowerCase()} — using the parts of the roof that are structurally and access-suitable, while leaving equipment and safety zones clear.`,
     components,
     changeablePct: usedPct,
     unusablePct,
@@ -297,7 +364,7 @@ export function buildFallbackDashboard(
       : 'Environmental impact is modest for this option on this roof.'
 
   return {
-    plan: buildFallbackPlan(building, ranked, solar),
+    plan: buildFallbackPlan(building, ranked, solar, prefs),
     recommendedOption: {
       name: top.name,
       category: meta(top.id).category,
