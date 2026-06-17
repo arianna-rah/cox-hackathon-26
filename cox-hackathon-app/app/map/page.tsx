@@ -20,17 +20,18 @@ const BuildingScene3D = dynamic(() => import('@/components/scene3d/BuildingScene
 export default function MapPage() {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
   const selectedBuilding = useMapStore((s) => s.selectedBuilding)
   const sidebarStep = useMapStore((s) => s.sidebarStep)
 
   useEffect(() => {
-    if (!user) {
+    if (hasHydrated && !user) {
       router.replace('/login')
     }
-  }, [user, router])
+  }, [hasHydrated, user, router])
 
-  // Don't render the map until we know the user is authenticated
-  if (!user) return null
+  // Wait for the persisted session to load before deciding to redirect.
+  if (!hasHydrated || !user) return null
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-greentop-bg">

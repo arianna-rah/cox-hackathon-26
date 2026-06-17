@@ -167,15 +167,16 @@ function PlanCard({ plan }: { plan: SavedPlan }) {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, logout } = useAuthStore()
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
   const plans = useDashboardStore((s) => s.plans)
 
   useEffect(() => {
-    if (!user) {
+    if (hasHydrated && !user) {
       router.replace('/login')
     }
-  }, [user, router])
+  }, [hasHydrated, user, router])
 
-  if (!user) return null
+  if (!hasHydrated || !user) return null
 
   function handleLogout() {
     logout()

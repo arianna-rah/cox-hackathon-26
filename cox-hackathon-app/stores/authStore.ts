@@ -9,6 +9,11 @@ export interface User {
 
 interface AuthState {
   user: User | null
+  // True once persisted state has rehydrated from localStorage. Guards must wait
+  // for this before redirecting, or a refresh / direct link bounces the user out
+  // before their saved session is restored.
+  hasHydrated: boolean
+  setHasHydrated: (v: boolean) => void
   login: (name: string, email: string) => void
   logout: () => void
 }
@@ -17,10 +22,15 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
+      hasHydrated: false,
+      setHasHydrated: (v) => set({ hasHydrated: v }),
       login: (name, email) =>
         set({ user: { id: `user-${Date.now()}`, name, email } }),
       logout: () => set({ user: null }),
     }),
-    { name: 'canopy-auth' },
+    {
+      name: 'canopy-auth',
+      onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
+    },
   ),
 )
