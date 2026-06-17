@@ -35,5 +35,4 @@ Atlanta was the perfect place to start because the cool roof law made the proble
 
 Long term, we want GreenTop to become a rooftop planning tool that works anywhere. A building owner could enter an address in any city and get a clear plan for the best roof upgrades based on local climate, energy prices, policies, and incentives.
 
-Built With
-gemini-api, google-solar-api, next.js, python, tailwind-css
+Built With: gemini-api, google-solar-api, next.js, python, tailwind-css
